@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { CaseDef, Obj } from '../engine/types';
-import { askedFor, type Action, type State } from '../engine/game';
+import { CARRYABLE } from '../engine/layout';
+import type { Action, State } from '../engine/game';
 import { MapView } from './MapView';
 import { Typed } from './Typed';
 
@@ -78,47 +79,19 @@ function LockPanel({ o, s, dispatch }: { o: Obj; s: State; dispatch: (a: Action)
   );
 }
 
-function Dialogue({ o, s, dispatch }: { o: Obj; s: State; dispatch: (a: Action) => void }) {
-  const t = o.talk!;
-  const done = askedFor(s, o.id);
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'nearest' }), [done.length]);
-  return (
-    <div className="talk">
-      <div className="who">
-        <span className="avatar big">{t.who[0]}</span>
-        <div><b>{t.who}</b><div className="mut">{t.role}</div></div>
-      </div>
-      <div className="bubble them">{t.intro}</div>
-      {done.map((qi) => (
-        <div key={qi}>
-          <div className="bubble me">{t.qa[qi].q}</div>
-          <div className="bubble them">{t.qa[qi].a}</div>
-        </div>
-      ))}
-      <div ref={end} />
-      <div className="asks">
-        {t.qa.map((q, qi) => !done.includes(qi) && (
-          <button key={qi} onClick={() => dispatch({ type: 'ASK', objId: o.id, qi })}>{q.q}</button>
-        ))}
-        {done.length === t.qa.length && <p className="mut">Nothing more to ask. Their account is pinned on the wall.</p>}
-      </div>
-    </div>
-  );
-}
-
 export function Inspect({ o, c, s, dispatch, onClose }: { o: Obj; c: CaseDef; s: State; dispatch: (a: Action) => void; onClose: () => void }) {
   const locked = !!o.lock && !s.unlocked[o.id];
   const pins = locked ? 0 : (o.events?.length ?? 0);
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-label={o.title} onClick={onClose}>
+    <div className="layer" role="dialog" aria-modal="true" aria-label={o.title} onClick={onClose}>
       <div className="sheet zoom" onClick={(e) => e.stopPropagation()}>
         <div className="sheethead">
           <h2>{o.title}</h2>
           <button onClick={onClose}>Close</button>
         </div>
-        {o.kind === 'person' ? <Dialogue o={o} s={s} dispatch={dispatch} /> : locked ? <LockPanel o={o} s={s} dispatch={dispatch} /> : <Artifact o={o} c={c} />}
-        {pins > 0 && <p className="pinned">{pins === 1 ? '1 fact' : pins + ' facts'} pinned to the evidence wall.</p>}
+        {locked ? <LockPanel o={o} s={s} dispatch={dispatch} /> : <Artifact o={o} c={c} />}
+        {CARRYABLE.includes(o.kind) && <p className="pinned">Added to your inventory.</p>}
+        {pins > 0 && <p className="pinned">{pins === 1 ? '1 fact' : pins + ' facts'} pinned to the evidence board.</p>}
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { MapView } from './MapView';
 
 interface Line { k: string; x1: number; y1: number; x2: number; y2: number }
 
-function Pinboard({ s, c }: { s: State; c: CaseDef }) {
+export function Pinboard({ s, c }: { s: State; c: CaseDef }) {
   const events = Object.values(s.events).sort((a, b) => (b.t ?? 0) - (a.t ?? 0));
   const board = useRef<HTMLDivElement>(null);
   const refs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -66,7 +66,7 @@ function Pinboard({ s, c }: { s: State; c: CaseDef }) {
   );
 }
 
-function Ledger({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
+export function Ledger({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
   return (
     <section aria-label="Operations ledger">
       <h2>Operations ledger</h2>
@@ -100,7 +100,7 @@ function Ledger({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action
   );
 }
 
-function Radio({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
+export function Radio({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
   const open = radioUnlocked(s, c);
   const [g0, g1] = c.decision.groups;
   return (
@@ -135,15 +135,5 @@ function Radio({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action)
         {s.msg && <div className="msg" role="alert">{s.msg}</div>}
       </div>
     </section>
-  );
-}
-
-export function Wall({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
-  return (
-    <>
-      <Pinboard s={s} c={c} />
-      <Ledger s={s} c={c} dispatch={dispatch} />
-      <Radio s={s} c={c} dispatch={dispatch} />
-    </>
   );
 }

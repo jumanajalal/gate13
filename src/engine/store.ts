@@ -9,12 +9,13 @@ export interface Entry {
 export interface Settings {
   sound: boolean;
   hard: boolean;
+  hotspots: boolean;
 }
 
 const LB_KEY = 'gate13.leaderboard.v1';
 const SET_KEY = 'gate13.settings.v1';
 let memBoard: Entry[] = [];
-let memSettings: Settings = { sound: true, hard: false };
+let memSettings: Settings = { sound: true, hard: false, hotspots: true };
 
 export function loadBoard(): Entry[] {
   try {

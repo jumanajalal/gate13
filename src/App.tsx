@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { CASES, caseById } from './engine/cases';
 import { initial, liveScore, reducer, LIMIT } from './engine/game';
-import { loadBoard, loadSettings, saveSettings, type Settings } from './engine/store';
+import { loadSettings, saveSettings, type Settings } from './engine/store';
 import { announce, silence, unlock, type Line } from './engine/pa';
 import { setSfx, sfx } from './engine/sfx';
-import type { Obj } from './engine/types';
+import { VIEWS } from './engine/layout';
+import type { Obj, ViewId } from './engine/types';
 import { Board } from './components/Board';
-import { Desk } from './components/Desk';
+import { RoomSvg, type Special } from './components/Room';
 import { Inspect } from './components/Inspect';
-import { Wall } from './components/Wall';
+import { Dialogue } from './components/Dialogue';
+import { Inventory } from './components/Inventory';
+import { Ledger, Pinboard, Radio } from './components/Wall';
 import { Intro } from './components/Intro';
 import { Report } from './components/Report';
 import { Leaderboard } from './components/Leaderboard';
@@ -25,16 +28,20 @@ export default function App() {
   return route.startsWith('#/props') ? <Props /> : <Game />;
 }
 
+type Layer = { type: 'obj' | 'talk'; id: string } | { type: 'board' | 'ledger' | 'radio' };
+
 function Game() {
   const [s, dispatch] = useReducer(reducer, initial);
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [room, setRoom] = useState<'desk' | 'wall'>('desk');
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [view, setView] = useState<ViewId>('gate');
+  const [layers, setLayers] = useState<Layer[]>([]);
   const [scan, setScan] = useState<null | 'envelope' | 'evidence'>(null);
   const [toast, setToast] = useState('');
   const [caption, setCaption] = useState<Line | null>(null);
+  const [pulse, setPulse] = useState(false);
   const [, force] = useState(0);
   const lastCase = useRef('');
+  const gameRef = useRef<HTMLDivElement>(null);
   const c = caseById(s.caseId);
   setSfx(settings.sound);
 
@@ -46,6 +53,11 @@ function Game() {
     },
     [settings.sound],
   );
+
+  const flash = useCallback((m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(''), 3500);
+  }, []);
 
   // 1 second clock (only while playing; the cold open is untimed)
   useEffect(() => {
@@ -71,7 +83,7 @@ function Game() {
   // outcome announcement
   useEffect(() => {
     if (s.phase === 'result' && s.result) {
-      setOpenId(null);
+      setLayers([]);
       say(s.result.win ? c.winPa : c.losePa, `${c.id}-${s.result.win ? 'win' : 'lose'}`);
     }
     if (s.phase === 'home') {
@@ -82,7 +94,7 @@ function Game() {
   }, [s.phase]);
 
   // room sound effects
-  const prev = useRef({ fails: 0, unlocked: 0, rows: 0, wrong: 0, events: 0, conflicts: 0 });
+  const prev = useRef({ fails: 0, unlocked: 0, rows: 0, wrong: 0, events: 0 });
   useEffect(() => {
     const p = prev.current;
     const fails = Object.values(s.lockFails).reduce((a, b) => a + b, 0);
@@ -94,19 +106,33 @@ function Game() {
     else if (rows > p.rows) sfx.stamp();
     else if (s.wrong > p.wrong) sfx.denied();
     else if (events > p.events) sfx.open();
-    prev.current = { fails, unlocked, rows, wrong: s.wrong, events, conflicts: 0 };
+    prev.current = { fails, unlocked, rows, wrong: s.wrong, events };
   }, [s.lockFails, s.unlocked, s.ledgerOk, s.wrong, s.events]);
 
-  const flash = (m: string) => {
-    setToast(m);
-    window.setTimeout(() => setToast(''), 2500);
-  };
+  const turn = useCallback((d: 1 | -1) => {
+    setView((v) => {
+      const i = VIEWS.findIndex((x) => x.id === v);
+      return VIEWS[(i + d + VIEWS.length) % VIEWS.length].id;
+    });
+  }, []);
+
+  // arrow keys turn the room when nothing is open
+  useEffect(() => {
+    if (s.phase !== 'play' || layers.length || scan) return;
+    const f = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowLeft') turn(-1);
+      if (e.key === 'ArrowRight') turn(1);
+    };
+    window.addEventListener('keydown', f);
+    return () => window.removeEventListener('keydown', f);
+  }, [s.phase, layers.length, scan, turn]);
 
   const start = (caseId: string) => {
     unlock();
     lastCase.current = caseId;
-    setRoom('desk');
-    setOpenId(null);
+    setView('gate');
+    setLayers([]);
     setScan(null);
     dispatch({ type: 'START', caseId, hard: settings.hard });
   };
@@ -122,9 +148,30 @@ function Game() {
     saveSettings(n);
   };
 
+  const push = (l: Layer) => setLayers((ls) => [...ls, l]);
+  const pop = () => setLayers((ls) => ls.slice(0, -1));
+
   const openObj = (o: Obj) => {
     dispatch({ type: 'OPEN', objId: o.id });
-    setOpenId(o.id);
+    push({ type: o.kind === 'person' ? 'talk' : 'obj', id: o.id });
+  };
+
+  const special = (sp: Special) => {
+    if (typeof sp === 'object') return flash(sp.flash);
+    push({ type: sp });
+  };
+
+  const hintNow = () => {
+    dispatch({ type: 'HINT' });
+    setPulse(true);
+    window.setTimeout(() => setPulse(false), 5000);
+  };
+
+  const fullscreen = () => {
+    const el = gameRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void el.requestFullscreen?.();
   };
 
   const onScan = (payload: string) => {
@@ -138,9 +185,8 @@ function Game() {
     if (scan === 'evidence' && parts[1] === c.id) {
       const o = c.objects.find((x) => x.id === parts[2]);
       if (o) {
-        setRoom('desk');
-        openObj(o);
         setScan(null);
+        openObj(o);
         return;
       }
     }
@@ -148,33 +194,72 @@ function Game() {
   };
 
   const status = s.phase === 'result' ? (s.result?.win ? c.boardWin : c.boardLose) : s.phase === 'home' ? 'AWAITING INCIDENT FILE' : c.boardHold;
-  const openObjDef = c.objects.find((o) => o.id === openId) ?? null;
-  const pinned = Object.keys(s.events).length;
+  const top = layers[layers.length - 1];
+  const topObj = top && 'id' in top ? c.objects.find((o) => o.id === top.id) : undefined;
+  const label = VIEWS.find((v) => v.id === view)!.label;
 
   return (
-    <>
+    <div className="game" ref={gameRef}>
       <Board
         flight={s.phase === 'home' ? 'GATE 13' : c.flight + ' · KOZHIKODE to DUBAI'}
         status={status}
-        left={s.phase === 'home' ? null : s.left}
+        left={s.phase === 'home' || s.phase === 'intro' ? null : s.left}
         hold={s.phase !== 'result'}
       />
+
+      {s.phase === 'play' && (
+        <>
+          <div className="stage">
+            <div key={view} className="wallfade">
+              <RoomSvg view={view} c={c} s={s} hints={settings.hotspots} strong={pulse} onObj={openObj} onSpecial={special} />
+            </div>
+            <button className="arrow left" aria-label="Turn left" onClick={() => turn(-1)}>‹</button>
+            <button className="arrow right" aria-label="Turn right" onClick={() => turn(1)}>›</button>
+            <div className="stagetop">
+              <span className="score">Score {liveScore(s)}</span>
+              <span className="tools">
+                <button onClick={() => setScan('evidence')} aria-label="Scan a card">Scan</button>
+                <button disabled={s.hints >= 2} onClick={hintNow}>Hint (-3)</button>
+                <button onClick={fullscreen}>Fullscreen</button>
+              </span>
+            </div>
+            <div className="viewbar">
+              <span className="viewname">{label}</span>
+              <span className="dots">
+                {VIEWS.map((v) => (
+                  <button key={v.id} className={'dotb' + (v.id === view ? ' on' : '')} aria-label={`Go to ${v.label}`} aria-current={v.id === view} onClick={() => setView(v.id)} />
+                ))}
+              </span>
+            </div>
+            {(s.banner || s.hints > 0) && (
+              <div className="stagemsgs">
+                {s.banner && <div className="msg warn" role="status">{s.banner}</div>}
+                {[...Array(s.hints)].map((_, i) => <div className="msg" key={i}>Supervisor: {c.hints[i]}</div>)}
+              </div>
+            )}
+          </div>
+          <Inventory c={c} s={s} onOpen={openObj} />
+        </>
+      )}
+
       <main>
         {s.phase === 'home' && (
           <>
             <h1>Last call at Gate 13</h1>
             <p className="lede">
-              The system says one thing. The people say another. You have {LIMIT / 60} minutes to search the gate, pin the facts on the wall, work out what the records really prove, and radio operations. Everything here is fictional.
+              The system says one thing. The people say another. You are inside the gate area with {LIMIT / 60} minutes before the aircraft is cleared. Look around, talk to people, pick things up, crack the locked terminals, and radio operations. Everything here is fictional.
             </p>
             <ol className="how">
-              <li><b>Search the desk.</b> Open props, crack locked terminals, question witnesses.</li>
-              <li><b>Read the wall.</b> Facts pin themselves. Contradictions get a red string.</li>
-              <li><b>File the ledger, then radio.</b> The radio only unlocks when your ledger is right.</li>
+              <li><b>Turn through the room.</b> Five walls. Tap anything that glows when you hover. Use the arrows or your keyboard arrow keys.</li>
+              <li><b>Collect and combine.</b> Items go into your inventory. Terminals ask for codes you must find on other items.</li>
+              <li><b>Read the evidence board.</b> Facts pin themselves. Contradictions get a red string.</li>
+              <li><b>File the ledger, then radio.</b> The radio unlocks only when your ledger is right.</li>
             </ol>
             <button className="pri big" onClick={draw}>Draw an envelope</button>
             <button onClick={() => setScan('envelope')}>Scan an envelope QR</button>
             <div className="card opts">
               <label><input type="checkbox" checked={settings.sound} onChange={() => toggle('sound')} /> Sound and announcements</label>
+              <label><input type="checkbox" checked={settings.hotspots} onChange={() => toggle('hotspots')} /> Show hotspot dots on things not yet inspected</label>
               <label><input type="checkbox" checked={settings.hard} onChange={() => toggle('hard')} /> Hard mode: the passenger can move (+10 points)</label>
             </div>
             <details>
@@ -189,31 +274,23 @@ function Game() {
             <Leaderboard onChange={() => force((n) => n + 1)} />
           </>
         )}
-
         {s.phase === 'intro' && <Intro c={c} onBegin={() => dispatch({ type: 'BEGIN' })} />}
-
-        {s.phase === 'play' && (
-          <>
-            <div className="rooms" role="tablist" aria-label="Rooms">
-              <button role="tab" aria-selected={room === 'desk'} className={room === 'desk' ? 'sel' : ''} onClick={() => setRoom('desk')}>Gate desk</button>
-              <button role="tab" aria-selected={room === 'wall'} className={room === 'wall' ? 'sel' : ''} onClick={() => setRoom('wall')}>Evidence wall ({pinned})</button>
-            </div>
-            <div className="row">
-              <button onClick={() => setScan('evidence')}>Scan a card</button>
-              <span className="score">Score {liveScore(s)}</span>
-              <button disabled={s.hints >= 2} onClick={() => dispatch({ type: 'HINT' })}>Hint (-3)</button>
-            </div>
-            {s.banner && <div className="msg warn" role="status">{s.banner}</div>}
-            {[...Array(s.hints)].map((_, i) => <div className="msg" key={i}>Supervisor: {c.hints[i]}</div>)}
-            {room === 'desk' ? <Desk c={c} s={s} onOpen={openObj} /> : <Wall s={s} c={c} dispatch={dispatch} />}
-            {room === 'desk' && <p className="mut center">Tip: facts you find are pinned on the evidence wall automatically.</p>}
-          </>
-        )}
-
         {s.phase === 'result' && s.result && <Report s={s} c={c} dispatch={dispatch} />}
       </main>
 
-      {openObjDef && s.phase === 'play' && <Inspect o={openObjDef} c={c} s={s} dispatch={dispatch} onClose={() => setOpenId(null)} />}
+      {s.phase === 'play' && top?.type === 'talk' && topObj && <Dialogue o={topObj} s={s} dispatch={dispatch} onClose={pop} />}
+      {s.phase === 'play' && top?.type === 'obj' && topObj && <Inspect o={topObj} c={c} s={s} dispatch={dispatch} onClose={pop} />}
+      {s.phase === 'play' && top && (top.type === 'board' || top.type === 'ledger' || top.type === 'radio') && (
+        <div className="layer" role="dialog" aria-modal="true" aria-label={top.type === 'board' ? 'Evidence board close-up' : top.type === 'ledger' ? 'Ledger close-up' : 'Radio close-up'} onClick={pop}>
+          <div className="sheet wide zoom" onClick={(e) => e.stopPropagation()}>
+            <div className="sheethead"><span /><button onClick={pop}>Close</button></div>
+            {top.type === 'board' && <Pinboard s={s} c={c} />}
+            {top.type === 'ledger' && <Ledger s={s} c={c} dispatch={dispatch} />}
+            {top.type === 'radio' && <Radio s={s} c={c} dispatch={dispatch} />}
+          </div>
+        </div>
+      )}
+
       {caption && (
         <div className="captions" aria-live="polite">
           {caption.en && <div>{caption.en}</div>}
@@ -223,6 +300,6 @@ function Game() {
       )}
       {toast && <div className="toast" role="status">{toast}</div>}
       {scan && <Scanner title={scan === 'envelope' ? 'Scan the envelope QR' : 'Scan an evidence card'} onScan={onScan} onClose={() => setScan(null)} />}
-    </>
+    </div>
   );
 }

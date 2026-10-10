@@ -71,6 +71,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'pass',
         kind: 'pass',
+        at: { v: 'gate', x: 840, y: 470 },
         title: 'Boarding pass',
         fields: [
           ['Passenger', 'NILA VARGHESE'],
@@ -84,6 +85,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'receipt',
         kind: 'receipt',
+        at: { v: 'seat', x: 800, y: 592 },
         title: 'Duty-free receipt',
         heading: 'DUTY FREE · KOZHIKODE',
         lines: ['T-29', '1 x sweets', 'Thank you'],
@@ -93,6 +95,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'scanlog',
         kind: 'terminal',
+        at: { v: 'gate', x: 520, y: 390 },
         title: 'Gate terminal',
         lock: { prompt: 'ENTER SEAT NUMBER TO OPEN THIS PASS RECORD', placeholder: 'e.g. 12A', answers: ['22C'], hint: 'The seat is printed on the boarding pass.' },
         lines: ['GATE 13 · SCAN LOG', 'T-27  PASS 22C  READ OK', 'AIRCRAFT-DOOR CONFIRMATION: no entry for pass 22C', ...SCAN_GLOSSARY],
@@ -104,6 +107,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'notice',
         kind: 'paper',
+        at: { v: 'win', x: 280, y: 220 },
         title: 'Gate notice',
         heading: 'GATE CHANGE NOTICE',
         lines: ['T-24', 'Boarding is moving.', 'Group 3: please wait at Holding Point H2 until called again.'],
@@ -112,6 +116,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'agent',
         kind: 'person',
+        at: { v: 'gate', x: 1000, y: 300 },
         title: 'Gate agent',
         talk: {
           who: 'Sana',
@@ -131,6 +136,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'relative',
         kind: 'person',
+        at: { v: 'seat', x: 280, y: 315 },
         title: 'Her brother',
         talk: {
           who: 'Thomas',
@@ -147,10 +153,11 @@ export const CASES: CaseDef[] = [
           ],
         },
       },
-      { id: 'map', kind: 'map', title: 'Terminal map', note: MAP_NOTE },
+      { id: 'map', kind: 'map', at: { v: 'bag', x: 150, y: 170 }, title: 'Terminal map', note: MAP_NOTE },
       {
         id: 'tag',
         kind: 'tag',
+        at: { v: 'bag', x: 520, y: 290 },
         title: 'Bag tag',
         heading: 'BAG TAG',
         fields: [
@@ -163,6 +170,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'bagterm',
         kind: 'terminal',
+        at: { v: 'bag', x: 1150, y: 370 },
         title: 'Baggage terminal',
         lock: { prompt: 'ENTER BAG TAG NUMBER', placeholder: '6 digits', answers: ['482915', 'MA613482915'], hint: 'The tag number is printed on the bag tag.' },
         lines: ['BAG EVENTS · 482915', 'ACCEPTED  T-60', 'SORTED    T-48', 'LOADED    no record', ...BAG_GLOSSARY],
@@ -235,6 +243,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'pass',
         kind: 'pass',
+        at: { v: 'gate', x: 840, y: 470 },
         title: 'Boarding pass',
         fields: [
           ['Passenger', 'ANJALI MENON'],
@@ -248,6 +257,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'scanlog',
         kind: 'terminal',
+        at: { v: 'gate', x: 520, y: 390 },
         title: 'Gate terminal',
         lock: { prompt: 'ENTER SEAT NUMBER TO OPEN THIS PASS RECORD', placeholder: 'e.g. 12A', answers: ['9A'], hint: 'The seat is printed on the boarding pass.' },
         lines: ['GATE 13 · SCAN LOG', 'T-30  PASS 9A  READ OK', 'AIRCRAFT-DOOR CONFIRMATION: no entry for pass 9A', ...SCAN_GLOSSARY],
@@ -259,6 +269,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'notice',
         kind: 'paper',
+        at: { v: 'win', x: 280, y: 220 },
         title: 'Gate notice',
         heading: 'BOARDING PAUSED',
         lines: ['T-22', 'Group 2: please return to the Main Lounge until the aircraft is ready.'],
@@ -267,6 +278,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'agent',
         kind: 'person',
+        at: { v: 'gate', x: 1000, y: 300 },
         title: 'Gate agent',
         talk: {
           who: 'Sana',
@@ -285,6 +297,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'relative',
         kind: 'person',
+        at: { v: 'seat', x: 280, y: 315 },
         title: 'Her husband',
         talk: {
           who: 'Dev',
@@ -301,10 +314,11 @@ export const CASES: CaseDef[] = [
           ],
         },
       },
-      { id: 'map', kind: 'map', title: 'Terminal map', note: MAP_NOTE },
+      { id: 'map', kind: 'map', at: { v: 'bag', x: 150, y: 170 }, title: 'Terminal map', note: MAP_NOTE },
       {
         id: 'tag',
         kind: 'tag',
+        at: { v: 'bag', x: 520, y: 290 },
         title: 'Bag tag',
         heading: 'BAG TAG',
         fields: [
@@ -317,6 +331,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'bagterm',
         kind: 'terminal',
+        at: { v: 'bag', x: 1150, y: 370 },
         title: 'Baggage terminal',
         lock: { prompt: 'ENTER BAG TAG NUMBER', placeholder: '6 digits', answers: ['771204', 'MA613771204'], hint: 'The tag number is printed on the bag tag.' },
         lines: ['BAG EVENTS · 771204', 'ACCEPTED  T-58', 'SORTED    T-46', 'LOADED    T-15  CONFIRMED', ...BAG_GLOSSARY],
@@ -388,6 +403,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'pass',
         kind: 'pass',
+        at: { v: 'gate', x: 900, y: 470 },
         title: 'Boarding pass',
         fields: [
           ['Passenger', 'RAVI MENON'],
@@ -400,6 +416,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'flagterm',
         kind: 'terminal',
+        at: { v: 'gate', x: 330, y: 390 },
         title: 'Check-in system',
         lines: ['CHECK-IN SYSTEM · MA 615', 'PASSENGER: MENON/RAVI', 'STATUS: NO-SHOW FLAG', 'REASON: pass read after gate closed (scan 01:25)', 'PENDING: offload checked bag'],
         events: [{ key: 'flag', t: null, when: 'FLAG', label: 'System flag: scanned after the gate closed', status: 'unconfirmed' }],
@@ -407,6 +424,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'scanlog',
         kind: 'terminal',
+        at: { v: 'gate', x: 580, y: 390 },
         title: 'Scan log',
         lock: { prompt: 'ENTER SEAT NUMBER TO OPEN THIS PASS RECORD', placeholder: 'e.g. 12A', answers: ['14F'], hint: 'The seat is printed on the boarding pass.' },
         lines: ['AIRLINE SCAN LOG · SINGAPORE SERVER', 'PASS 14F  READ OK  01:25 SGT (UTC+8)', 'Times on this server are in SGT.'],
@@ -415,6 +433,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'notice',
         kind: 'paper',
+        at: { v: 'win', x: 280, y: 220 },
         title: 'Gate notice',
         heading: 'GATE CLOSE NOTICE',
         lines: ['Flight MA 615 departs 23:30 IST.', 'Gate 13 closes at 23:10 IST (India Standard Time).'],
@@ -423,6 +442,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'zones',
         kind: 'clock',
+        at: { v: 'win', x: 480, y: 230 },
         title: 'World clock card',
         heading: 'WORLD CLOCK CARD',
         lines: ['IST (India) = UTC+5:30', 'SGT (Singapore) = UTC+8', 'GST (Dubai) = UTC+4', 'SGT is 2 h 30 min ahead of IST.', 'To get IST from SGT, subtract 2 h 30 min.'],
@@ -430,6 +450,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'ravi',
         kind: 'person',
+        at: { v: 'seat', x: 280, y: 315 },
         title: 'The passenger',
         talk: {
           who: 'Ravi',
@@ -449,6 +470,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'tag',
         kind: 'tag',
+        at: { v: 'bag', x: 520, y: 290 },
         title: 'Bag tag',
         heading: 'BAG TAG',
         fields: [
@@ -461,6 +483,7 @@ export const CASES: CaseDef[] = [
       {
         id: 'bagterm',
         kind: 'terminal',
+        at: { v: 'bag', x: 1150, y: 370 },
         title: 'Baggage terminal',
         lock: { prompt: 'ENTER BAG TAG NUMBER', placeholder: '6 digits', answers: ['903377', 'MA615903377'], hint: 'The tag number is printed on the bag tag.' },
         lines: ['BAG EVENTS · 903377', 'ACCEPTED  22:10 IST', 'SORTED    22:31 IST', 'OFFLOAD REQUEST: pending (raised from the no-show flag)'],

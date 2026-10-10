@@ -9,6 +9,8 @@ export interface EvEvent {
   status: Status;
 }
 
+export type ViewId = 'gate' | 'win' | 'seat' | 'bag' | 'ops';
+
 export type Kind = 'pass' | 'paper' | 'terminal' | 'receipt' | 'tag' | 'person' | 'map' | 'clock';
 
 /** A code the player must find elsewhere in the room (escape-room gate). */
@@ -36,6 +38,8 @@ export interface Talk {
 export interface Obj {
   id: string;
   kind: Kind;
+  /** Where the prop sits in the room: wall view and top-left position on a 1600x900 canvas. */
+  at: { v: ViewId; x: number; y: number };
   title: string;
   heading?: string;
   fields?: [string, string][];

@@ -13,6 +13,7 @@ import {
   type State,
 } from './game';
 import type { CaseDef } from './types';
+import { CANVAS, KIND_SIZE } from './layout';
 
 const begin = (caseId: string, hard = false): State =>
   reducer(reducer(initial, { type: 'START', caseId, hard }), { type: 'BEGIN' });
@@ -223,4 +224,30 @@ describe('hard mode: the passenger moves', () => {
     expect(s.banner).toBe('');
     expect(correctNow(s)[1]).toBe('H2');
   });
+});
+
+describe('room layout', () => {
+  for (const c of CASES) {
+    it(`${c.id}: every prop fits on the canvas and no two props overlap in a view`, () => {
+      const box = (o: (typeof c.objects)[number]) => {
+        const [w, h] = KIND_SIZE[o.kind];
+        return { v: o.at.v, x1: o.at.x, y1: o.at.y, x2: o.at.x + w, y2: o.at.y + h, id: o.id };
+      };
+      const boxes = c.objects.map(box);
+      for (const b of boxes) {
+        expect(b.x1).toBeGreaterThanOrEqual(0);
+        expect(b.y1).toBeGreaterThanOrEqual(0);
+        expect(b.x2).toBeLessThanOrEqual(CANVAS.w);
+        expect(b.y2).toBeLessThanOrEqual(CANVAS.h);
+        expect(b.v).not.toBe('ops'); // the operations wall is reserved for board, ledger and radio
+      }
+      for (let i = 0; i < boxes.length; i++)
+        for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i], b = boxes[j];
+          if (a.v !== b.v) continue;
+          const overlap = a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2;
+          expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+        }
+    });
+  }
 });

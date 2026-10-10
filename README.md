@@ -7,18 +7,24 @@ Everything (airline, passengers, flights, records) is fictional. It is a game ab
 
 ## How it plays
 
-1. **Cold open.** A short briefing sets the scene. The clock only starts when you enter Gate 13.
-2. **Search the desk.** Nine objects: boarding pass, notices, receipts, a map, two terminals, two witnesses. Terminals are **locked**: the code is printed on another prop (seat on the boarding pass, tag number on the bag tag). Witnesses answer authored questions.
-3. **Read the evidence wall.** Every fact you find is pinned automatically as CONFIRMED or UNCONFIRMED. When two records contradict each other, a red string is drawn between them. The contradiction checker is deterministic code, never an AI.
-4. **File the ledger.** A paper form with one row per claim (for example "passenger confirmed at the aircraft door"). Operations stamps rows VERIFIED or rejects them. Wrong rows cost that row's points, never the game.
-5. **Radio operations.** Locked until the ledger is correct. Flip the action, tap the place on the map, transmit. The board flips with the outcome, then an incident report explains what the records proved.
+You stand inside a gate area at night and **turn through five walls** (arrow buttons, the dots, or your keyboard arrow keys).
+
+1. **Cold open.** A short briefing sets the scene. The clock starts when you enter Gate 13.
+2. **Gate counter:** a departure board, the gate agent, a locked terminal. **Window and jet bridge:** a notice taped on the glass and the closed aircraft door. **Seating area:** a worried witness, a receipt on the table, the sign for Holding Point H2. **Baggage wall:** the terminal map, a hanging bag tag, a locked baggage terminal. **Operations wall:** the evidence board, a ledger clipboard, the radio and a countdown.
+3. **Pick things up.** Boarding pass, notice, receipt and bag tag leave the wall and go into your **inventory**. Tap an inventory item while you are at a locked terminal to read the code you need.
+4. **Talk to people** in a dialogue panel with a portrait. They answer authored questions; what they say is pinned on the board.
+5. **Evidence board.** Facts pin themselves as CONFIRMED or UNCONFIRMED. When two records contradict each other, a red string is drawn between them. The contradiction checker is plain deterministic code, never an AI.
+6. **Ledger clipboard.** A paper form with one row per claim. Operations stamps rows VERIFIED or rejects them. Wrong rows cost that row's points, never the game.
+7. **Radio.** Locked until the ledger is right. Choose the action, tap the place on the map, transmit. The board flips and an incident report explains what the records proved.
+
+The art is drawn in code (SVG), so there are no image files to lose and it works offline. Best on a laptop in fullscreen (there is a Fullscreen button) or a phone in landscape.
 
 ## Run it
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 26 tests: engine rules + a full click-through of the UI
+npm test           # 31 tests: engine rules, layout, and full click-through playthroughs of the room
 npm run build      # then: npm run preview  (http://localhost:4173, works offline)
 ```
 
@@ -38,7 +44,8 @@ Add a case by copying an object in `src/engine/cases.ts`. `npm test` checks that
 ## Features
 
 - 3 authored cases on one engine; "Draw an envelope" picks one at random and avoids repeating the last
-- Locks, witnesses, evidence wall with red-string contradictions, ledger, radio
+- A five-wall room with drawn props, character portraits, inventory, locks, evidence board with red strings, ledger, radio
+- Hotspot dots (switch off in settings) and a Hint button that makes every uninspected hotspot pulse for 5 seconds
 - Hard mode: the passenger moves at an authored time (visible banner, PA line and map pin), +10 points
 - Scoring: +10 per ledger row filed correctly the first time, +20 radio call, small speed bonus, -3 per hint, -5 per wrong radio call
 - Local leaderboard (works with no server)
@@ -52,9 +59,14 @@ Add a case by copying an object in `src/engine/cases.ts`. `npm test` checks that
 ## Project layout
 
 - `src/engine/`: case data, state machine, scoring, store, PA and sound (no UI code, fully tested)
-- `src/components/`: Desk, Inspect (zoom, locks, dialogue), Wall (board, ledger, radio), Intro, Report, Props
+- `src/components/`: art (all drawings), Room (one wall plus hotspots), Dialogue, Inventory, Inspect (zoom + locks), Wall (board, ledger, radio), Intro, Report, Props
 - `docs/CASE-BIBLE.md`: truth, codes and answer keys. `docs/RUNBOOK.md`: booth setup. `docs/PITCH.md`: pitch script.
 
 ## Ideas not built yet
 
 More case variants, a physical lock souvenir, a text message to the judge's phone from the passenger, animated passenger movement on the map.
+
+## Changing the room
+
+- Where a prop sits: the `at: { v, x, y }` field on each object in `src/engine/cases.ts` (1600x900 canvas, `v` is the wall). `npm test` fails if props overlap or fall off the canvas.
+- How a wall looks: `src/components/art.tsx`. Preview walls as images with `npx vite-node scripts/render.tsx` (writes SVGs to /tmp/walls).
