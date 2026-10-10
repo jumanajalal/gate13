@@ -128,6 +128,26 @@ function Game() {
     return () => window.removeEventListener('keydown', f);
   }, [s.phase, layers.length, scan, turn]);
 
+  // keyboard shortcuts: Escape, I, M
+  useEffect(() => {
+    if (s.phase !== 'play') return;
+    const f = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.key === 'Escape') {
+        if (layers.length) pop();
+      } else if (e.key === 'i' || e.key === 'I') {
+        if (!layers.length) {
+          const btn = document.querySelector<HTMLButtonElement>('.inv button');
+          if (btn) btn.focus();
+        }
+      } else if (e.key === 'm' || e.key === 'M') {
+        if (!layers.length) push({ type: 'board' });
+      }
+    };
+    window.addEventListener('keydown', f);
+    return () => window.removeEventListener('keydown', f);
+  }, [s.phase, layers.length]);
+
   const start = (caseId: string) => {
     unlock();
     lastCase.current = caseId;
@@ -193,7 +213,9 @@ function Game() {
     flash('That card belongs to a different case.');
   };
 
-  const status = s.phase === 'result' ? (s.result?.win ? c.boardWin : c.boardLose) : s.phase === 'home' ? 'AWAITING INCIDENT FILE' : c.boardHold;
+  const status = s.phase === 'result'
+    ? (s.outcome === 'cleared' ? c.boardLose : s.result?.win ? c.boardWin : c.boardLose)
+    : s.phase === 'home' ? 'AWAITING INCIDENT FILE' : c.boardHold;
   const top = layers[layers.length - 1];
   const topObj = top && 'id' in top ? c.objects.find((o) => o.id === top.id) : undefined;
   const label = VIEWS.find((v) => v.id === view)!.label;
@@ -205,6 +227,7 @@ function Game() {
         status={status}
         left={s.phase === 'home' || s.phase === 'intro' ? null : s.left}
         hold={s.phase !== 'result'}
+        outcome={s.outcome}
       />
 
       {s.phase === 'play' && (
@@ -237,6 +260,10 @@ function Game() {
                 {[...Array(s.hints)].map((_, i) => <div className="msg" key={i}>Supervisor: {c.hints[i]}</div>)}
               </div>
             )}
+            {/* Dialogue lives INSIDE .stage so it's contained within the room area */}
+            {top?.type === 'talk' && topObj && (
+              <Dialogue o={topObj} s={s} dispatch={dispatch} onClose={pop} />
+            )}
           </div>
           <Inventory c={c} s={s} onOpen={openObj} />
         </>
@@ -245,40 +272,52 @@ function Game() {
       <main>
         {s.phase === 'home' && (
           <>
-            <h1>Last call at Gate 13</h1>
-            <p className="lede">
-              The system says one thing. The people say another. You are inside the gate area with {LIMIT / 60} minutes before the aircraft is cleared. Look around, talk to people, pick things up, crack the locked terminals, and radio operations. Everything here is fictional.
-            </p>
-            <ol className="how">
-              <li><b>Turn through the room.</b> Five walls. Tap anything that glows when you hover. Use the arrows or your keyboard arrow keys.</li>
-              <li><b>Collect and combine.</b> Items go into your inventory. Terminals ask for codes you must find on other items.</li>
-              <li><b>Read the evidence board.</b> Facts pin themselves. Contradictions get a red string.</li>
-              <li><b>File the ledger, then radio.</b> The radio unlocks only when your ledger is right.</li>
-            </ol>
-            <button className="pri big" onClick={draw}>Draw an envelope</button>
-            <button onClick={() => setScan('envelope')}>Scan an envelope QR</button>
-            <div className="card opts">
-              <label><input type="checkbox" checked={settings.sound} onChange={() => toggle('sound')} /> Sound and announcements</label>
-              <label><input type="checkbox" checked={settings.hotspots} onChange={() => toggle('hotspots')} /> Show hotspot dots on things not yet inspected</label>
-              <label><input type="checkbox" checked={settings.hard} onChange={() => toggle('hard')} /> Hard mode: the passenger can move (+10 points)</label>
-            </div>
-            <details>
-              <summary>Facilitator: pick a case, print props</summary>
-              <div className="card">
-                {CASES.map((x) => (
-                  <div key={x.id}><button onClick={() => start(x.id)}>{x.title}</button> <span className="mut">{x.tagline}</span></div>
-                ))}
-                <p><a href="#/props">Open the printable evidence kit</a></p>
+            <div className="home-screen">
+              <div className="home-terminal">
+                <div className="home-logo">
+                  <span className="home-logo-mark">G13</span>
+                  <div className="home-logo-text">
+                    <span className="home-title">GATE 13</span>
+                    <span className="home-sub">LAST CALL · INCIDENT INVESTIGATION</span>
+                  </div>
+                </div>
+                <p className="home-brief">
+                  The system says the passenger boarded. Her brother says she never reached the plane.
+                  You have <strong>3 minutes</strong> before the aircraft is cleared. Everything here is fictional.
+                </p>
+                <div className="home-actions">
+                  <button className="pri big home-start" onClick={draw}>▶ Begin Investigation</button>
+                  <button className="home-scan" onClick={() => setScan('envelope')}>⬡ Scan Envelope QR</button>
+                </div>
+                <div className="home-howto">
+                  <div className="home-howto-item"><span className="home-key">←→</span> Pan through Gate 13</div>
+                  <div className="home-howto-item"><span className="home-key">Click</span> Inspect objects &amp; talk to witnesses</div>
+                  <div className="home-howto-item"><span className="home-key">M</span> Open evidence board</div>
+                  <div className="home-howto-item"><span className="home-key">Esc</span> Close any panel</div>
+                </div>
+                <div className="home-opts">
+                  <label><input type="checkbox" checked={settings.sound} onChange={() => toggle('sound')} /> Sound</label>
+                  <label><input type="checkbox" checked={settings.hotspots} onChange={() => toggle('hotspots')} /> Show hotspot hints</label>
+                  <label><input type="checkbox" checked={settings.hard} onChange={() => toggle('hard')} /> Hard mode (+10 pts)</label>
+                </div>
+                <details className="home-facilitator">
+                  <summary>Facilitator controls</summary>
+                  <div className="home-facilitator-body">
+                    {CASES.map((x) => (
+                      <div key={x.id}><button onClick={() => start(x.id)}>{x.title}</button> <span className="mut">{x.tagline}</span></div>
+                    ))}
+                    <p><a href="#/props">Print evidence kit →</a></p>
+                  </div>
+                </details>
               </div>
-            </details>
+            </div>
             <Leaderboard onChange={() => force((n) => n + 1)} />
           </>
         )}
         {s.phase === 'intro' && <Intro c={c} onBegin={() => dispatch({ type: 'BEGIN' })} />}
-        {s.phase === 'result' && s.result && <Report s={s} c={c} dispatch={dispatch} />}
+        {s.phase === 'result' && (s.result || s.outcome === 'cleared') && <Report s={s} c={c} dispatch={dispatch} />}
       </main>
 
-      {s.phase === 'play' && top?.type === 'talk' && topObj && <Dialogue o={topObj} s={s} dispatch={dispatch} onClose={pop} />}
       {s.phase === 'play' && top?.type === 'obj' && topObj && <Inspect o={topObj} c={c} s={s} dispatch={dispatch} onClose={pop} />}
       {s.phase === 'play' && top && (top.type === 'board' || top.type === 'ledger' || top.type === 'radio') && (
         <div className="layer" role="dialog" aria-modal="true" aria-label={top.type === 'board' ? 'Evidence board close-up' : top.type === 'ledger' ? 'Ledger close-up' : 'Radio close-up'} onClick={pop}>

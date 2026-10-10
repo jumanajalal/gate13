@@ -8,16 +8,48 @@ interface Props {
   pickable?: string[];
   picked?: string | null;
   onPick?: (id: string) => void;
+  /** Show amber Group 3 route overlay between gate and H2. */
+  overlay?: boolean;
 }
 
-export function MapView({ map, pin, pickable = [], picked, onPick }: Props) {
+export function MapView({ map, pin, pickable = [], picked, onPick, overlay }: Props) {
   const pn = pin ? map.nodes.find((n) => n.id === pin) : undefined;
   const label = 'Terminal map showing ' + map.nodes.map((n) => n.label + (n.sub ? ' ' + n.sub : '')).join(', ');
+  const gateNode = map.nodes.find((n) => n.id === 'gate');
+  const h2Node = map.nodes.find((n) => n.id === 'H2');
   return (
     <svg viewBox="0 0 330 150" role={pickable.length ? 'group' : 'img'} aria-label={label}>
+      <defs>
+        <filter id="mapglow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
       {map.edges.map((e, i) => (
         <path key={i} className="e" d={`M${e[0]} ${e[1]} L${e[2]} ${e[3]}`} />
       ))}
+      {overlay && gateNode && h2Node && (
+        <g>
+          <path
+            d={`M${gateNode.x + gateNode.w} ${gateNode.y + gateNode.h / 2} L${h2Node.x} ${h2Node.y + h2Node.h / 2}`}
+            stroke="#ffb938"
+            strokeWidth={3}
+            fill="none"
+            filter="url(#mapglow)"
+            strokeDasharray="6 3"
+          />
+          <text
+            x={h2Node.x + 4}
+            y={h2Node.y - 6}
+            fontSize="8"
+            fill="#ffb938"
+            fontWeight="700"
+            fontFamily="ui-monospace, monospace"
+          >
+            ← Group 3 redirected
+          </text>
+        </g>
+      )}
       {map.nodes.map((n) => {
         const can = pickable.includes(n.id);
         const props = can

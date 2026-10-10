@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { CaseDef, Obj, ViewId } from '../engine/types';
-import type { State } from '../engine/game';
+import { evidenceCount, type State } from '../engine/game';
 
 /* Everything here is drawn with plain SVG attributes so each wall renders standalone (no CSS needed). */
 
@@ -24,6 +24,8 @@ export function Defs() {
       <linearGradient id="cork" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a47c4f" /><stop offset="1" stopColor="#85613b" /></linearGradient>
       <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stopColor="#fff3c4" stopOpacity=".55" /><stop offset="1" stopColor="#fff3c4" stopOpacity="0" /></radialGradient>
       <radialGradient id="vig" cx=".5" cy=".5" r=".75"><stop offset=".55" stopColor="#000" stopOpacity="0" /><stop offset="1" stopColor="#000" stopOpacity=".72" /></radialGradient>
+      <clipPath id="rainclip"><rect x="150" y="140" width="1020" height="440" /></clipPath>
+      <clipPath id="beltclip"><rect x="0" y="718" width="1600" height="72" /></clipPath>
     </defs>
   );
 }
@@ -199,7 +201,32 @@ export interface SceneBits {
 
 const mono = { fontFamily: 'ui-monospace, Menlo, Consolas, monospace' } as const;
 
-function GateWall({ c }: { c: CaseDef }): SceneBits {
+// Rain lines for the window wall
+const RAIN_LINES = Array.from({ length: 28 }, (_, i) => ({
+  x: 180 + i * 36,
+  dur: 1.5 + (i % 7) * 0.1,
+  begin: (i * 0.07) % 2.0,
+  opacity: 0.18 + (i % 4) * 0.04,
+}));
+
+function GateWall({ c, s }: { c: CaseDef; s?: State }): SceneBits {
+  // Determine the status text for MA 613 row
+  let statusText = 'ON HOLD';
+  let statusFill = '#ffb938';
+  let useFlicker = true;
+
+  if (s?.phase === 'result') {
+    if (s.outcome === 'cleared') {
+      statusText = 'DEPARTED';
+      statusFill = '#ff6b68';
+      useFlicker = false;
+    } else if (s.outcome === 'win') {
+      statusText = 'RECONCILIATION IN PROGRESS';
+      statusFill = '#41c98a';
+      useFlicker = false;
+    }
+  }
+
   return {
     personPose: 'stand',
     back: (
@@ -207,8 +234,26 @@ function GateWall({ c }: { c: CaseDef }): SceneBits {
         <rect width="1600" height="720" fill="url(#wall)" /><Lights />
         <rect x="400" y="130" width="800" height="220" rx="10" fill="#04090f" stroke="#2b4157" strokeWidth="6" />
         {[['FLIGHT', 430], ['TO', 610], ['GATE', 850], ['STATUS', 980]].map(([h, x]) => <text key={h as string} x={x as number} y="172" fontSize="22" fill="#6f8ba6" {...mono}>{h}</text>)}
-        {[[c.flight, 'DUBAI', '13', 'ON HOLD', '#ffb938', 222], ['MA 421', 'CHENNAI', '09', 'DELAYED', '#6f8ba6', 266], ['MA 288', 'MUMBAI', '11', 'BOARDING', '#6f8ba6', 310]].map((r) => (
-          <g key={r[1] as string}>{[430, 610, 850, 980].map((x, i) => <text key={x} x={x} y={r[5] as number} fontSize="30" fill={r[4] as string} fontWeight={r[5] === 222 ? 700 : 400} {...mono}>{r[i] as string}</text>)}</g>
+        {/* MA 613 row — first, with cinematic status */}
+        <g>
+          {[430, 610, 850, 980].map((x, i) => {
+            const vals = [c.flight, 'DUBAI', '13', statusText];
+            if (i === 3) {
+              return (
+                <text key={x} x={x} y={222} fontSize="30" fill={statusFill} fontWeight={700} {...mono}>
+                  {vals[i]}
+                  {useFlicker && (
+                    <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
+                  )}
+                </text>
+              );
+            }
+            return <text key={x} x={x} y={222} fontSize="30" fill="#ffb938" fontWeight={700} {...mono}>{vals[i]}</text>;
+          })}
+        </g>
+        {/* Other rows */}
+        {[['MA 421', 'CHENNAI', '09', 'DELAYED', '#6f8ba6', 266], ['MA 288', 'MUMBAI', '11', 'BOARDING', '#6f8ba6', 310]].map((r) => (
+          <g key={r[1] as string}>{[430, 610, 850, 980].map((x, i) => <text key={x} x={x} y={r[5] as number} fontSize="30" fill={r[4] as string} fontWeight={400} {...mono}>{r[i] as string}</text>)}</g>
         ))}
         <rect x="90" y="200" width="190" height="450" rx="6" fill="#0a1520" stroke="#2b4157" strokeWidth="5" />
         <rect x="118" y="232" width="134" height="40" rx="4" fill="#7a1f1f" /><text x="130" y="259" fontSize="20" fill="#fff" fontWeight="700" {...mono}>STAFF ONLY</text>
@@ -246,12 +291,28 @@ function WindowWall({ c }: { c: CaseDef }): SceneBits {
         <rect x="400" y="140" width="16" height="440" fill="#0b1520" /><rect x="660" y="140" width="16" height="440" fill="#0b1520" /><rect x="920" y="140" width="16" height="440" fill="#0b1520" />
         <rect x="150" y="140" width="1020" height="440" fill="none" stroke="#0b1520" strokeWidth="14" />
         <rect x="140" y="580" width="1040" height="18" fill="#2b4157" /><rect x="150" y="598" width="1020" height="122" fill="#12283b" />
+        {/* Rain on glass */}
+        <g clipPath="url(#rainclip)">
+          {RAIN_LINES.map((rl, i) => (
+            <line key={i} x1={rl.x} y1="140" x2={rl.x + 18} y2="580" stroke="#9fd0ff" strokeWidth="1.5" opacity={rl.opacity}>
+              <animateTransform attributeName="transform" type="translate" from="0 -440" to="0 440" dur={`${rl.dur}s`} begin={`${rl.begin}s`} repeatCount="indefinite" />
+            </line>
+          ))}
+        </g>
         <rect x="1230" y="180" width="230" height="450" fill="#5d6f7d" stroke="#2b4157" strokeWidth="6" />
         <rect x="1262" y="224" width="166" height="200" fill="#0b1822" /><rect x="1250" y="130" width="190" height="40" rx="4" fill="#0b1520" />
         <text x="1276" y="159" fontSize="26" fill="#ffb938" fontWeight="700" {...mono}>GATE 13</text>
         <circle cx="1345" cy="480" r="16" fill="#ff3b3b" /><circle cx="1345" cy="480" r="34" fill="#ff3b3b" opacity=".25" />
         <text x="1292" y="540" fontSize="22" fill="#ff8a8a" fontWeight="700" {...mono}>CLOSED</text>
         <rect x="1420" y="400" width="14" height="60" rx="5" fill="#c9d3dc" />
+        {/* Aircraft beacon pulse */}
+        <circle cx="560" cy="400" r="7" fill="#ff3b3b">
+          <animate attributeName="opacity" values="0;0;1;0;0" dur="3s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="560" cy="400" r="18" fill="#ff3b3b" opacity="0.25">
+          <animate attributeName="r" values="14;22;14" dur="3s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.25;0;0.25" dur="3s" repeatCount="indefinite" />
+        </circle>
         <Floor />
       </g>
     ),
@@ -289,6 +350,9 @@ function SeatWall({ c }: { c: CaseDef }): SceneBits {
   };
 }
 
+// Conveyor belt stripes
+const BELT_STRIPES = Array.from({ length: 10 }, (_, i) => ({ x: i * 160 }));
+
 function BagWall({ c }: { c: CaseDef }): SceneBits {
   void c;
   return {
@@ -305,8 +369,17 @@ function BagWall({ c }: { c: CaseDef }): SceneBits {
         <text x="668" y="176" fontSize="26" fill="#ffb938" fontWeight="700" {...mono}>BAGGAGE SERVICE</text>
         <rect x="1100" y="520" width="280" height="18" fill="#6e8ba3" />
         <Floor />
-        <rect x="0" y="720" width="1600" height="70" fill="#242d37" />
-        {[...Array(32)].map((_, i) => <rect key={i} x={i * 52} y="724" width="8" height="62" fill="#37424e" />)}
+        {/* Conveyor belt */}
+        <rect x="0" y="718" width="1600" height="72" fill="#242d37" />
+        <rect x="0" y="718" width="1600" height="72" fill="#1a2330" opacity="0.6" clipPath="url(#beltclip)" />
+        <g clipPath="url(#beltclip)">
+          {BELT_STRIPES.map((stripe, i) => (
+            <rect key={i} x={stripe.x} y="718" width="12" height="72" fill="#37424e" opacity="0.7">
+              <animateTransform attributeName="transform" type="translate" from="0 0" to="-160 0" dur="1.8s" begin={`${i * 0.18}s`} repeatCount="indefinite" />
+            </rect>
+          ))}
+        </g>
+        {[...Array(32)].map((_, i) => <rect key={i} x={i * 52} y="724" width="8" height="62" fill="#37424e" opacity="0.3" />)}
         <rect x="200" y="660" width="120" height="70" rx="10" fill="#8a2b2b" /><rect x="360" y="640" width="150" height="90" rx="10" fill="#274a66" /><rect x="1180" y="672" width="110" height="58" rx="10" fill="#3d6b4f" />
         <rect x="1330" y="650" width="120" height="80" rx="10" fill="#6b5a2b" />
       </g>
@@ -321,6 +394,10 @@ export function OpsWall({ c, s }: { c: CaseDef; s: State }) {
   const idx = (k: string) => events.findIndex((e) => e.key === k);
   const left = Math.max(0, s.left);
   const clock = `${Math.floor(left / 60)}:${('0' + (left % 60)).slice(-2)}`;
+  const evCount = evidenceCount(s);
+  const radioReady = c.ledger.every((r) => s.ledgerOk[r.id]);
+  // Glow when 4+ evidence events collected and ledger not yet filed
+  const glowOpacity = evCount >= 4 && !radioReady ? 0.35 : evCount > 0 && radioReady ? 0.5 : 0.1;
   return (
     <g>
       <rect width="1600" height="720" fill="url(#wall)" /><Lights />
@@ -346,6 +423,10 @@ export function OpsWall({ c, s }: { c: CaseDef; s: State }) {
       <rect x="1060" y="130" width="420" height="130" rx="10" fill="#04090f" stroke="#2b4157" strokeWidth="6" />
       <text x="1270" y="168" fontSize="22" fill="#6f8ba6" textAnchor="middle" {...mono}>AIRCRAFT CLEARED IN</text>
       <text x="1270" y="238" fontSize="64" fill={left <= 30 ? '#ff6b68' : '#ffb938'} fontWeight="800" textAnchor="middle" {...mono}>{clock}</text>
+      {/* Radio glow bloom */}
+      <circle cx="1390" cy="680" r="80" fill="#ffb938" opacity={glowOpacity}>
+        <animate attributeName="opacity" values={`${glowOpacity};${glowOpacity * 0.5};${glowOpacity}`} dur="2s" repeatCount="indefinite" />
+      </circle>
       <Floor y={700} />
     </g>
   );
@@ -362,7 +443,7 @@ export function opsMid(open: boolean) {
   );
 }
 
-export const WALLS: Record<Exclude<ViewId, 'ops'>, (a: { c: CaseDef }) => SceneBits> = {
+export const WALLS: Record<Exclude<ViewId, 'ops'>, (a: { c: CaseDef; s?: State }) => SceneBits> = {
   gate: GateWall,
   win: WindowWall,
   seat: SeatWall,

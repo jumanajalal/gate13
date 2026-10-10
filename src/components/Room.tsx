@@ -51,7 +51,7 @@ export function RoomSvg({ view, c, s, hints, strong, onObj, onSpecial }: RoomPro
   const here = c.objects.filter((o) => o.at.v === view);
   // carried items leave the room and live in the inventory bar
   const visible = here.filter((o) => !(CARRYABLE.includes(o.kind) && s.opened[o.id]));
-  const bits = view === 'ops' ? null : WALLS[view]({ c });
+  const bits = view === 'ops' ? null : WALLS[view]({ c, s });
   const people = visible.filter((o) => o.kind === 'person');
   const things = visible.filter((o) => o.kind !== 'person');
 

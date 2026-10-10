@@ -5,14 +5,37 @@ import { addEntry, loadBoard } from '../engine/store';
 
 /** Debrief as a stamped incident report: what the records proved, row by row. */
 export function Report({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
-  const r = s.result!;
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState(() => `Team ${loadBoard().length + 1}`);
+
+  // Cleared outcome — flight departed without resolution
+  if (s.outcome === 'cleared') {
+    return (
+      <section className="report" aria-label="Incident report">
+        <div className="bigstamp lose">UNRESOLVED</div>
+        <h1>Incident report: {c.title}</h1>
+        <p>
+          Flight {c.flight} departed. Passenger status remains unconfirmed. The incident is still open.
+        </p>
+        <button onClick={() => dispatch({ type: 'REOPEN' })}>Reopen Incident</button>
+        <button onClick={() => dispatch({ type: 'HOME' })}>Back to start</button>
+      </section>
+    );
+  }
+
+  if (!s.result) return null;
+  const r = s.result;
+
   return (
     <section className="report" aria-label="Incident report">
       <div className={'bigstamp ' + (r.win ? 'win' : 'lose')}>{r.win ? 'RESOLVED' : 'UNRESOLVED'}</div>
       <h1>Incident report: {c.title}</h1>
       <p>{r.win ? c.winText : c.loseText}</p>
+      {r.win && (
+        <div className="term" style={{ marginTop: 8 }}>
+          <div className="tl">{'> DEPARTURE HOLD LIFTED · ' + c.flight + ' DEPARTED 14 MINUTES LATE · ALL PAX ACCOUNTED FOR'}</div>
+        </div>
+      )}
       <h2>What the records proved</h2>
       <table>
         <tbody>

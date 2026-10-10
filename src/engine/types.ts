@@ -48,6 +48,7 @@ export interface Obj {
   lock?: Lock;
   events?: EvEvent[];
   talk?: Talk;
+  manualAlias?: string;
 }
 
 interface RowBase {

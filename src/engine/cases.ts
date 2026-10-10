@@ -73,6 +73,7 @@ export const CASES: CaseDef[] = [
         kind: 'pass',
         at: { v: 'gate', x: 840, y: 470 },
         title: 'Boarding pass',
+        manualAlias: 'PASS-22C',
         fields: [
           ['Passenger', 'NILA VARGHESE'],
           ['Flight', 'MA 613'],
@@ -90,7 +91,8 @@ export const CASES: CaseDef[] = [
         heading: 'DUTY FREE · KOZHIKODE',
         lines: ['T-29', '1 x sweets', 'Thank you'],
         note: 'On the back, in crayon: a plane and two stick figures. Signed "Rohan".',
-        events: [{ key: 'receipt', t: 29, label: 'Receipt places Nila with the boy', status: 'confirmed' }],
+        manualAlias: 'REC-H2',
+        events: [{ key: 'receipt', t: 29, label: 'Receipt places Nila with the boy at H2 counter', status: 'confirmed' }],
       },
       {
         id: 'scanlog',
@@ -111,6 +113,7 @@ export const CASES: CaseDef[] = [
         title: 'Gate notice',
         heading: 'GATE CHANGE NOTICE',
         lines: ['T-24', 'Boarding is moving.', 'Group 3: please wait at Holding Point H2 until called again.'],
+        manualAlias: 'NOTICE-G3',
         events: [{ key: 'notice', t: 24, label: 'Group 3 redirected to Holding Point H2', status: 'confirmed' }],
       },
       {
@@ -160,6 +163,7 @@ export const CASES: CaseDef[] = [
         at: { v: 'bag', x: 520, y: 290 },
         title: 'Bag tag',
         heading: 'BAG TAG',
+        manualAlias: 'TAG-482915',
         fields: [
           ['Passenger', 'VARGHESE/NILA'],
           ['Flight', 'MA 613'],

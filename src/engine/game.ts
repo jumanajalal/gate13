@@ -41,6 +41,8 @@ export interface State {
   banner: string;
   movesApplied: number;
   result: Result | null;
+  outcome: 'win' | 'timeout' | 'cleared' | null;
+  mapOverlay: boolean;
 }
 
 export type Action =
@@ -55,7 +57,8 @@ export type Action =
   | { type: 'HINT' }
   | { type: 'PICK'; group: 0 | 1; value: string }
   | { type: 'SUBMIT' }
-  | { type: 'HOME' };
+  | { type: 'HOME' }
+  | { type: 'REOPEN' };
 
 export const initial: State = {
   phase: 'home',
@@ -79,6 +82,8 @@ export const initial: State = {
   banner: '',
   movesApplied: 0,
   result: null,
+  outcome: null,
+  mapOverlay: false,
 };
 
 export const normCode = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -124,9 +129,11 @@ export function computeResult(s: State, win: boolean): Result {
   return { win, evidence: s.evidence, decision, speed, hints, wrong, hardBonus, total };
 }
 
-function finish(s: State, win: boolean): State {
-  return { ...s, phase: 'result', result: computeResult(s, win) };
+function finish(s: State, win: boolean, outcome: State['outcome'] = win ? 'win' : 'timeout'): State {
+  return { ...s, phase: 'result', outcome, result: computeResult(s, win) };
 }
+
+export const evidenceCount = (s: State): number => Object.keys(s.events).length;
 
 /** Conflict notes whose two events are both on the wall. Deterministic: no AI judges truth. */
 export function detectConflicts(events: Record<string, EvEvent>, c: CaseDef): string[] {
@@ -172,15 +179,19 @@ export function reducer(s: State, a: Action): State {
           next = { ...next, banner: moves[next.movesApplied].text, movesApplied: next.movesApplied + 1 };
         }
       }
-      return next.left <= 0 ? finish(next, false) : next;
+      return next.left <= 0 ? finish(next, false, 'timeout') : next;
     }
     case 'OPEN': {
       const o = c.objects.find((x) => x.id === a.objId);
       if (s.phase !== 'play' || !o) return s;
       const locked = !!o.lock && !s.unlocked[o.id];
+      const mapOverlay = s.mapOverlay ||
+        (a.objId === 'map' && !!s.opened['notice']) ||
+        (a.objId === 'notice' && !!s.opened['map']);
       return {
         ...s,
         opened: { ...s.opened, [o.id]: true },
+        mapOverlay,
         events: locked ? s.events : withEvents(s.events, o.events),
       };
     }
@@ -250,11 +261,18 @@ export function reducer(s: State, a: Action): State {
     }
     case 'SUBMIT': {
       if (s.phase !== 'play' || !radioUnlocked(s, c) || !s.picks[0] || !s.picks[1]) return s;
+      if (s.picks[0] === 'clear') {
+        return finish({ ...s, msg: c.decision.messages.first['clear'] ?? c.decision.messages.fallback }, false, 'cleared');
+      }
       const want = correctNow(s, c);
-      if (s.picks[0] === want[0] && s.picks[1] === want[1]) return finish(s, true);
+      if (s.picks[0] === want[0] && s.picks[1] === want[1]) return finish(s, true, 'win');
       const msg = s.picks[0] !== want[0] ? c.decision.messages.first[s.picks[0]] ?? c.decision.messages.fallback : c.decision.messages.fallback;
       return { ...s, wrong: s.wrong + 1, msg, picks: [null, null] };
     }
+    case 'REOPEN':
+      if (s.phase !== 'result' || s.outcome !== 'cleared') return s;
+      return { ...s, phase: 'play', result: null, outcome: null, wrong: s.wrong + 1,
+               picks: [null, null], msg: 'Incident reopened. Passenger status remains unresolved.' };
     default:
       return s;
   }

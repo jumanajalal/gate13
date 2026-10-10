@@ -3,6 +3,7 @@ import { CASES, caseById } from './cases';
 import {
   correctNow,
   detectConflicts,
+  evidenceCount,
   initial,
   LIMIT,
   liveScore,
@@ -223,6 +224,74 @@ describe('hard mode: the passenger moves', () => {
     for (let i = 0; i < 150; i++) s = reducer(s, { type: 'TICK' });
     expect(s.banner).toBe('');
     expect(correctNow(s)[1]).toBe('H2');
+  });
+});
+
+describe('outcome and mapOverlay', () => {
+  it('outcome is null initially and after BEGIN', () => {
+    expect(initial.outcome).toBeNull();
+    expect(begin('nila').outcome).toBeNull();
+  });
+
+  it("outcome === 'win' after a correct transmit", () => {
+    let s = fileCorrectLedger(investigate(begin('nila')));
+    const c = caseById('nila');
+    s = transmit(s, c.decision.correct[0], c.decision.correct[1]);
+    expect(s.outcome).toBe('win');
+    expect(s.result?.win).toBe(true);
+  });
+
+  it("outcome === 'cleared' when picks[0] === 'clear' is transmitted", () => {
+    let s = fileCorrectLedger(investigate(begin('nila')));
+    s = transmit(s, 'clear', 'H2');
+    expect(s.outcome).toBe('cleared');
+    expect(s.phase).toBe('result');
+  });
+
+  it("outcome === 'timeout' after LIMIT ticks", () => {
+    let s = begin('nila');
+    for (let i = 0; i < LIMIT; i++) s = reducer(s, { type: 'TICK' });
+    expect(s.outcome).toBe('timeout');
+    expect(s.phase).toBe('result');
+  });
+
+  it('REOPEN transitions from result/cleared back to play with wrong incremented', () => {
+    let s = fileCorrectLedger(investigate(begin('nila')));
+    s = transmit(s, 'clear', 'H2');
+    expect(s.phase).toBe('result');
+    expect(s.outcome).toBe('cleared');
+    const wrongBefore = s.wrong;
+    s = reducer(s, { type: 'REOPEN' });
+    expect(s.phase).toBe('play');
+    expect(s.outcome).toBeNull();
+    expect(s.wrong).toBe(wrongBefore + 1);
+    expect(s.result).toBeNull();
+  });
+
+  it('REOPEN does nothing from a non-cleared result', () => {
+    let s = fileCorrectLedger(investigate(begin('nila')));
+    const c = caseById('nila');
+    s = transmit(s, c.decision.correct[0], c.decision.correct[1]);
+    expect(s.outcome).toBe('win');
+    const unchanged = reducer(s, { type: 'REOPEN' });
+    expect(unchanged.phase).toBe('result');
+  });
+
+  it('mapOverlay becomes true when both map and notice are opened', () => {
+    let s = begin('nila');
+    expect(s.mapOverlay).toBe(false);
+    s = reducer(s, { type: 'OPEN', objId: 'map' });
+    expect(s.mapOverlay).toBe(false);
+    s = reducer(s, { type: 'OPEN', objId: 'notice' });
+    expect(s.mapOverlay).toBe(true);
+  });
+
+  it('mapOverlay becomes true when notice opened before map', () => {
+    let s = begin('nila');
+    s = reducer(s, { type: 'OPEN', objId: 'notice' });
+    expect(s.mapOverlay).toBe(false);
+    s = reducer(s, { type: 'OPEN', objId: 'map' });
+    expect(s.mapOverlay).toBe(true);
   });
 });
 
