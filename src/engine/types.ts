@@ -1,6 +1,6 @@
 export type Status = 'confirmed' | 'unconfirmed';
 
-/** One fact on the evidence timeline. `t` = minutes before departure; `when` overrides the label (e.g. clock times). */
+/** One fact on the evidence wall. `t` = minutes before departure; `when` overrides the label (clock times). */
 export interface EvEvent {
   key: string;
   t: number | null;
@@ -9,28 +9,54 @@ export interface EvEvent {
   status: Status;
 }
 
-export interface Item {
-  id: string;
-  title: string;
-  body: string;
+export type Kind = 'pass' | 'paper' | 'terminal' | 'receipt' | 'tag' | 'person' | 'map' | 'clock';
+
+/** A code the player must find elsewhere in the room (escape-room gate). */
+export interface Lock {
+  prompt: string;
+  placeholder: string;
+  answers: string[];
+  hint: string;
+}
+
+export interface QA {
+  q: string;
+  a: string;
   events?: EvEvent[];
 }
 
-export interface Question {
-  text: string;
-  options: string[];
-  answer: number;
+export interface Talk {
+  who: string;
+  role: string;
+  intro: string;
+  qa: QA[];
 }
 
-export interface Bundle {
-  id: 'A' | 'B' | 'C';
+/** An object on the gate desk: a prop, a terminal, a map or a person. */
+export interface Obj {
+  id: string;
+  kind: Kind;
   title: string;
-  items: Item[];
-  question: Question;
-  /** Derived facts added to the timeline when the question is answered correctly. */
-  onCorrect?: EvEvent[];
-  showMap?: boolean;
+  heading?: string;
+  fields?: [string, string][];
+  lines?: string[];
+  note?: string;
+  lock?: Lock;
+  events?: EvEvent[];
+  talk?: Talk;
 }
+
+interface RowBase {
+  id: string;
+  label: string;
+  /** Shown in the debrief. */
+  why: string;
+  /** Facts added to the wall when this row is accepted. */
+  onOk?: EvEvent[];
+}
+export type Row =
+  | (RowBase & { kind: 'choice'; options: string[]; answer: string })
+  | (RowBase & { kind: 'time'; answer: string });
 
 export interface MapNode {
   id: string;
@@ -59,7 +85,7 @@ export interface DecisionGroup {
 
 export interface Decision {
   groups: [DecisionGroup, DecisionGroup];
-  /** Correct option id for each group. For map cases group 1 is the location id. */
+  /** Correct option id per group. For map cases group 1 is the location id. */
   correct: [string, string];
   messages: { first: Record<string, string>; fallback: string };
 }
@@ -77,13 +103,15 @@ export interface CaseDef {
   tagline: string;
   flight: string;
   passenger: string;
-  intro: string;
+  /** Cold-open lines shown one by one before the clock starts. */
+  opening: string[];
   boardHold: string;
   boardWin: string;
   boardLose: string;
   winText: string;
   loseText: string;
-  bundles: [Bundle, Bundle, Bundle];
+  objects: Obj[];
+  ledger: Row[];
   map?: MapDef;
   decision: Decision;
   hints: [string, string];

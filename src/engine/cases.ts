@@ -1,4 +1,4 @@
-import type { CaseDef, MapDef } from './types';
+import type { CaseDef, Decision, MapDef, PaLine } from './types';
 
 /** All names, airlines, flights and records are fictional. */
 const TERMINAL_MAP: MapDef = {
@@ -16,138 +16,175 @@ const TERMINAL_MAP: MapDef = {
   ],
 };
 
-const GLOSSARY_PASS =
-  'Glossary: SCAN = pass read at the gate. ONBOARD = passenger confirmed at the aircraft door.';
+const MAP_DECISION = (loc: string): Decision => ({
+  groups: [
+    { title: 'Action', options: [{ id: 'hold', label: 'Hold and verify' }, { id: 'clear', label: 'Clear the flight' }] },
+    {
+      title: 'Send staff to check (tap the map)',
+      options: [
+        { id: 'door', label: 'Aircraft door' },
+        { id: 'H2', label: 'Holding Point H2' },
+        { id: 'lounge', label: 'Main lounge' },
+      ],
+    },
+  ],
+  correct: ['hold', loc],
+  messages: {
+    first: { clear: 'Flight released: passenger status unresolved. Recheck the wall and decide again.' },
+    fallback: 'No confirmation at that location. Recheck the route evidence.',
+  },
+});
+
+const HOLD_PA: PaLine = {
+  atLeft: 45,
+  en: 'This flight is on hold. Operations are reconciling passenger records.',
+  ml: 'ഈ വിമാനം തൽക്കാലം നിർത്തിവച്ചിരിക്കുന്നു. യാത്രക്കാരുടെ രേഖകൾ പരിശോധിക്കുകയാണ്.',
+  ar: 'هذه الرحلة متوقفة مؤقتاً. تقوم العمليات بمطابقة سجلات الركاب.',
+};
+
+const SCAN_GLOSSARY = ['---', 'SCAN = pass read at the gate', 'ONBOARD = passenger confirmed at the aircraft door'];
+const BAG_GLOSSARY = ['---', 'LOADED = bag confirmed on the aircraft'];
+const MAP_NOTE = 'Holding points and the main lounge are marked. Read the labels.';
 
 export const CASES: CaseDef[] = [
+  /* ------------------------------------------------------------------ */
   {
     id: 'nila',
     title: 'The Group 3 Redirect',
     tagline: 'A scan is not the same as being onboard.',
     flight: 'MA 613',
     passenger: 'Nila Varghese',
-    intro:
-      "Nila Varghese's pass was scanned at Gate 13, but her relative says she never reached the aircraft. Departure is on hold. Work out what the records actually prove, then tell operations what to do.",
+    opening: [
+      '23:12 · Gate 13',
+      'Malabar Air MA 613 to Dubai is on hold.',
+      'The system says passenger Nila Varghese boarded. Her brother says she never reached the plane.',
+      'You are the response team. You have three minutes before the aircraft is cleared.',
+    ],
     boardHold: 'DEPARTURE HOLD: PASSENGER STATUS UNCONFIRMED',
     boardWin: 'PASSENGER LOCATED: WELFARE CHECK IN PROGRESS',
     boardLose: 'FLIGHT DEPARTED: PASSENGER STATUS UNCONFIRMED',
     winText:
-      "Nila's pass was scanned, but nothing confirmed she reached the aircraft: the staff note only says the scanner registered the group. The notice, the map and the relative's statement point to where she actually stopped, with her nephew. Her bag was accepted and sorted, and its loading is still unconfirmed.",
+      "Nila's pass was scanned, but nothing confirmed she reached the aircraft. 'Group 3 cleared' only meant the scanner registered the group. The notice, the map and her brother's account pointed to where she stopped with her nephew. Her bag was accepted and sorted, and its loading is still unconfirmed.",
     loseText:
       'The records never confirmed Nila on board. The best next step was to hold the flight and check where the route evidence pointed, while keeping the bag marked unconfirmed.',
-    bundles: [
+    objects: [
       {
-        id: 'A',
-        title: 'Boarding',
-        items: [
-          { id: 'pass', title: 'Boarding pass stub', body: 'MA 613 · NILA VARGHESE · Group 3 · Seat 22C · Gate 13' },
-          {
-            id: 'scan',
-            title: 'Gate scan log',
-            body: `T-27: pass 22C read OK. No other entries for this pass.<br>${GLOSSARY_PASS}`,
-            events: [
-              { key: 'scan', t: 27, label: 'Pass scanned at Gate 13', status: 'confirmed' },
-              { key: 'onb', t: 0, label: 'Onboard confirmation: none on record', status: 'unconfirmed' },
-            ],
-          },
+        id: 'pass',
+        kind: 'pass',
+        title: 'Boarding pass',
+        fields: [
+          ['Passenger', 'NILA VARGHESE'],
+          ['Flight', 'MA 613'],
+          ['Route', 'CCJ to DXB'],
+          ['Group', '3'],
+          ['Seat', '22C'],
+          ['Gate', '13'],
         ],
-        question: {
-          text: 'What does this record establish?',
-          options: [
-            'Nila boarded the aircraft',
-            'Her pass was read at the gate; reaching the aircraft is not recorded',
-            'Nila never reached the gate',
+      },
+      {
+        id: 'receipt',
+        kind: 'receipt',
+        title: 'Duty-free receipt',
+        heading: 'DUTY FREE · KOZHIKODE',
+        lines: ['T-29', '1 x sweets', 'Thank you'],
+        note: 'On the back, in crayon: a plane and two stick figures. Signed "Rohan".',
+        events: [{ key: 'receipt', t: 29, label: 'Receipt places Nila with the boy', status: 'confirmed' }],
+      },
+      {
+        id: 'scanlog',
+        kind: 'terminal',
+        title: 'Gate terminal',
+        lock: { prompt: 'ENTER SEAT NUMBER TO OPEN THIS PASS RECORD', placeholder: 'e.g. 12A', answers: ['22C'], hint: 'The seat is printed on the boarding pass.' },
+        lines: ['GATE 13 · SCAN LOG', 'T-27  PASS 22C  READ OK', 'AIRCRAFT-DOOR CONFIRMATION: no entry for pass 22C', ...SCAN_GLOSSARY],
+        events: [
+          { key: 'scan', t: 27, label: 'Pass scanned at Gate 13', status: 'confirmed' },
+          { key: 'onb', t: 0, label: 'Aircraft-door confirmation: none on record', status: 'unconfirmed' },
+        ],
+      },
+      {
+        id: 'notice',
+        kind: 'paper',
+        title: 'Gate notice',
+        heading: 'GATE CHANGE NOTICE',
+        lines: ['T-24', 'Boarding is moving.', 'Group 3: please wait at Holding Point H2 until called again.'],
+        events: [{ key: 'notice', t: 24, label: 'Group 3 redirected to Holding Point H2', status: 'confirmed' }],
+      },
+      {
+        id: 'agent',
+        kind: 'person',
+        title: 'Gate agent',
+        talk: {
+          who: 'Sana',
+          role: 'Gate agent',
+          intro: 'I wrote "Group 3 cleared" in the log. Ask me what I meant.',
+          qa: [
+            {
+              q: 'What does "Group 3 cleared" mean?',
+              a: 'My scanner registered the group, so I wrote cleared. I did not walk them to the aircraft myself.',
+              events: [{ key: 'note', t: 20, label: '"Group 3 cleared" (scanner only; nobody saw them reach the aircraft)', status: 'unconfirmed' }],
+            },
+            { q: 'Did you see Nila reach the plane?', a: 'No. After the redirect I lost sight of the group.' },
+            { q: 'Where was Group 3 sent?', a: 'Gate change. They were told to wait at Holding Point H2 until called again.' },
           ],
-          answer: 1,
         },
       },
       {
-        id: 'B',
-        title: 'Movement',
-        showMap: true,
-        items: [
-          {
-            id: 'notice',
-            title: 'Gate change notice',
-            body: 'T-24: Group 3 to wait at Holding Point H2 until called again.',
-            events: [{ key: 'notice', t: 24, label: 'Group 3 redirected to Holding Point H2', status: 'confirmed' }],
-          },
-          {
-            id: 'note',
-            title: 'Staff note',
-            body: 'T-20: "Group 3 cleared." The scanner registered the group. Staff did not see the group reach the aircraft.',
-            events: [
-              { key: 'note', t: 20, label: '"Group 3 cleared" (scanner only; nobody saw them reach the aircraft)', status: 'unconfirmed' },
-            ],
-          },
-          {
-            id: 'stmt',
-            title: 'Relative statement',
-            body: '"When they redirected Group 3, Nila stopped with the boy by the coffee counter. I went toward the gate because an agent said the group would be called again."',
-            events: [{ key: 'stmt', t: 17, label: 'Relative: Nila last seen at the coffee counter (see map)', status: 'unconfirmed' }],
-          },
-          {
-            id: 'receipt',
-            title: 'Duty-free receipt',
-            body: 'T-29: one sweets purchase. On the back, a child\'s drawing of a plane, signed "Rohan".',
-            events: [{ key: 'receipt', t: 29, label: 'Receipt places Nila with the boy', status: 'confirmed' }],
-          },
-        ],
-        question: {
-          text: 'Where do the notice, the map and the statement point?',
-          options: ['The aircraft door', 'Holding Point H2', 'The main lounge'],
-          answer: 1,
+        id: 'relative',
+        kind: 'person',
+        title: 'Her brother',
+        talk: {
+          who: 'Thomas',
+          role: "Nila's brother",
+          intro: 'Please. My sister and my nephew are somewhere in this airport.',
+          qa: [
+            {
+              q: 'When did you last see Nila?',
+              a: 'When they redirected Group 3. She stopped with the boy by the coffee counter. I went toward the gate because an agent said the group would be called again.',
+              events: [{ key: 'stmt', t: 17, label: 'Brother: Nila last seen at the coffee counter (see map)', status: 'unconfirmed' }],
+            },
+            { q: 'Who is the boy?', a: 'Rohan, her nephew. He is six and he stops walking when he is tired. She would never rush him.' },
+            { q: 'Can you call her?', a: 'It goes straight to voicemail. Her phone was nearly dead.' },
+          ],
         },
+      },
+      { id: 'map', kind: 'map', title: 'Terminal map', note: MAP_NOTE },
+      {
+        id: 'tag',
+        kind: 'tag',
+        title: 'Bag tag',
+        heading: 'BAG TAG',
+        fields: [
+          ['Passenger', 'VARGHESE/NILA'],
+          ['Flight', 'MA 613'],
+          ['Tag no.', 'MA613-482915'],
+          ['Pieces', '1 of 1'],
+        ],
       },
       {
-        id: 'C',
-        title: 'Baggage',
-        items: [
-          { id: 'tag', title: 'Bag tag', body: 'MA 613 · VARGHESE/NILA · 1 checked bag' },
-          {
-            id: 'strip',
-            title: 'Bag event strip (fictional extract)',
-            body: 'ACCEPTED T-60 · SORTED T-48 · LOADED: not confirmed.<br>Glossary: LOADED = bag confirmed on the aircraft.',
-            events: [
-              { key: 'bag', t: 48, label: 'Bag accepted and sorted', status: 'confirmed' },
-              { key: 'load', t: 0, label: 'Bag loaded: no record', status: 'unconfirmed' },
-            ],
-          },
+        id: 'bagterm',
+        kind: 'terminal',
+        title: 'Baggage terminal',
+        lock: { prompt: 'ENTER BAG TAG NUMBER', placeholder: '6 digits', answers: ['482915', 'MA613482915'], hint: 'The tag number is printed on the bag tag.' },
+        lines: ['BAG EVENTS · 482915', 'ACCEPTED  T-60', 'SORTED    T-48', 'LOADED    no record', ...BAG_GLOSSARY],
+        events: [
+          { key: 'bag', t: 48, label: 'Bag accepted and sorted', status: 'confirmed' },
+          { key: 'load', t: 0, label: 'Bag loaded: no record', status: 'unconfirmed' },
         ],
-        question: {
-          text: 'What does the bag record establish?',
-          options: ['The bag was loaded', 'Accepted and sorted; loading is unconfirmed', 'The bag is lost'],
-          answer: 1,
-        },
       },
+    ],
+    ledger: [
+      { id: 'scan', label: 'Pass read at the gate', kind: 'choice', options: ['Confirmed', 'Not confirmed'], answer: 'Confirmed', why: 'The gate scan log shows the pass was read at T-27.' },
+      { id: 'onboard', label: 'Passenger confirmed at the aircraft door', kind: 'choice', options: ['Confirmed', 'Not confirmed'], answer: 'Not confirmed', why: '"Group 3 cleared" only means the scanner registered the group. Nobody saw Nila reach the aircraft.' },
+      { id: 'bag', label: 'Bag confirmed loaded on the aircraft', kind: 'choice', options: ['Confirmed', 'Not confirmed'], answer: 'Not confirmed', why: 'The bag was accepted and sorted. No load event is on record.' },
     ],
     map: TERMINAL_MAP,
-    decision: {
-      groups: [
-        { title: 'Action', options: [{ id: 'hold', label: 'Hold and verify' }, { id: 'clear', label: 'Clear the flight' }] },
-        {
-          title: 'Send staff to check',
-          options: [
-            { id: 'door', label: 'Aircraft door' },
-            { id: 'H2', label: 'Holding Point H2' },
-            { id: 'lounge', label: 'Main lounge' },
-          ],
-        },
-      ],
-      correct: ['hold', 'H2'],
-      messages: {
-        first: { clear: 'Flight released: passenger status unresolved. Recheck the evidence and decide again.' },
-        fallback: 'No confirmation at that location. Recheck the route evidence.',
-      },
-    },
+    decision: MAP_DECISION('H2'),
     hints: [
       'Separate three things: scanned, moving, onboard. Which of them does each record actually prove?',
-      "Match the relative's landmark to a labeled place on the map.",
+      "Match her brother's landmark to a labeled place on the map.",
     ],
-    conflicts: [{ a: 'note', b: 'stmt', note: 'These two records cannot both describe where Nila is.' }],
-    moves: [
-      { atElapsed: 100, loc: 'lounge', text: 'Staff update: a woman with a child was seen leaving H2 toward the main lounge.' },
-    ],
+    conflicts: [{ a: 'note', b: 'stmt', note: 'These two accounts cannot both describe where Nila is.' }],
+    moves: [{ atElapsed: 100, loc: 'lounge', text: 'Staff update: a woman with a child was seen leaving H2 toward the main lounge.' }],
     pa: [
       {
         atLeft: 177,
@@ -161,12 +198,7 @@ export const CASES: CaseDef[] = [
         ml: 'മലബാർ എയർ എം എ 613, ദുബായ് വിമാനത്തിന്റെ അവസാന അറിയിപ്പ്. യാത്രക്കാരി നില വർഗീസ്, ദയവായി ഉടൻ ഗേറ്റ് 13-ലേക്ക് വരിക.',
         ar: 'النداء الأخير لرحلة ملبار إم إيه ٦١٣ إلى دبي. على الراكبة نيلا فارغيز التوجه فوراً إلى البوابة ١٣.',
       },
-      {
-        atLeft: 45,
-        en: 'This flight is on hold. Operations are reconciling passenger records.',
-        ml: 'ഈ വിമാനം തൽക്കാലം നിർത്തിവച്ചിരിക്കുന്നു. യാത്രക്കാരുടെ രേഖകൾ പരിശോധിക്കുകയാണ്.',
-        ar: 'هذه الرحلة متوقفة مؤقتاً. تقوم العمليات بمطابقة سجلات الركاب.',
-      },
+      HOLD_PA,
     ],
     winPa: {
       en: 'Passenger located. Welfare check in progress.',
@@ -179,129 +211,133 @@ export const CASES: CaseDef[] = [
       ar: 'غادرت الرحلة إم إيه ٦١٣. لا تزال حالة إحدى الراكبات غير مؤكدة.',
     },
   },
+  /* ------------------------------------------------------------------ */
   {
     id: 'anjali',
     title: 'The Sent-Back Group',
     tagline: 'A loaded bag still is not a passenger.',
     flight: 'MA 613',
     passenger: 'Anjali Menon',
-    intro:
-      "Anjali Menon's pass was scanned and her bag is on the aircraft, but she is not in her seat and her relative cannot reach her. Departure is on hold. Decide what the records prove and where staff should look.",
+    opening: [
+      '23:08 · Gate 13',
+      'Malabar Air MA 613 to Dubai is on hold.',
+      "Passenger Anjali Menon's bag is on the aircraft. She is not in her seat, and her husband cannot reach her.",
+      'You have three minutes before the aircraft is cleared.',
+    ],
     boardHold: 'DEPARTURE HOLD: PASSENGER NOT IN SEAT, BAG LOADED',
     boardWin: 'PASSENGER LOCATED: ESCORTED TO GATE',
     boardLose: 'FLIGHT DEPARTED: PASSENGER STATUS UNCONFIRMED',
     winText:
-      "Anjali's pass was scanned, but nothing confirmed she reached the aircraft. Boarding was paused and Group 2 was sent back to the lounge; her relative says she went to charge her phone. Her bag was confirmed loaded, which says where the bag is and nothing about where she is.",
+      "Anjali's pass was scanned, but nothing confirmed she reached the aircraft. Boarding was paused and Group 2 was sent back to the lounge, where her husband said she went to charge her phone. Her bag was confirmed loaded, which says where the bag is and nothing about where she is.",
     loseText:
-      'The bag record was a distraction: a loaded bag does not locate its owner. The notice and the statement both pointed to the lounge, so that was where staff needed to check.',
-    bundles: [
+      'The loaded bag was the distraction: it does not locate its owner. The notice and her husband both pointed to the lounge, so that was where staff needed to check.',
+    objects: [
       {
-        id: 'A',
-        title: 'Boarding',
-        items: [
-          { id: 'pass', title: 'Boarding pass stub', body: 'MA 613 · ANJALI MENON · Group 2 · Seat 9A · Gate 13' },
-          {
-            id: 'scan',
-            title: 'Gate scan log',
-            body: `T-30: pass 9A read OK. No other entries for this pass.<br>${GLOSSARY_PASS}`,
-            events: [
-              { key: 'scan', t: 30, label: 'Pass scanned at Gate 13', status: 'confirmed' },
-              { key: 'onb', t: 0, label: 'Onboard confirmation: none on record', status: 'unconfirmed' },
-            ],
-          },
+        id: 'pass',
+        kind: 'pass',
+        title: 'Boarding pass',
+        fields: [
+          ['Passenger', 'ANJALI MENON'],
+          ['Flight', 'MA 613'],
+          ['Route', 'CCJ to DXB'],
+          ['Group', '2'],
+          ['Seat', '9A'],
+          ['Gate', '13'],
         ],
-        question: {
-          text: 'What does this record establish?',
-          options: [
-            'Anjali is in her seat',
-            'Her pass was read at the gate; reaching the aircraft is not recorded',
-            'Anjali was never at the airport',
+      },
+      {
+        id: 'scanlog',
+        kind: 'terminal',
+        title: 'Gate terminal',
+        lock: { prompt: 'ENTER SEAT NUMBER TO OPEN THIS PASS RECORD', placeholder: 'e.g. 12A', answers: ['9A'], hint: 'The seat is printed on the boarding pass.' },
+        lines: ['GATE 13 · SCAN LOG', 'T-30  PASS 9A  READ OK', 'AIRCRAFT-DOOR CONFIRMATION: no entry for pass 9A', ...SCAN_GLOSSARY],
+        events: [
+          { key: 'scan', t: 30, label: 'Pass scanned at Gate 13', status: 'confirmed' },
+          { key: 'onb', t: 0, label: 'Aircraft-door confirmation: none on record', status: 'unconfirmed' },
+        ],
+      },
+      {
+        id: 'notice',
+        kind: 'paper',
+        title: 'Gate notice',
+        heading: 'BOARDING PAUSED',
+        lines: ['T-22', 'Group 2: please return to the Main Lounge until the aircraft is ready.'],
+        events: [{ key: 'notice', t: 22, label: 'Group 2 sent back to the Main Lounge', status: 'confirmed' }],
+      },
+      {
+        id: 'agent',
+        kind: 'person',
+        title: 'Gate agent',
+        talk: {
+          who: 'Sana',
+          role: 'Gate agent',
+          intro: 'I wrote "Group 2 cleared" in the log. Ask me what I meant.',
+          qa: [
+            {
+              q: 'What does "Group 2 cleared" mean?',
+              a: 'My scanner registered the group, so I wrote cleared. I did not see them reach the aircraft.',
+              events: [{ key: 'note', t: 19, label: '"Group 2 cleared" (scanner only; nobody saw them reach the aircraft)', status: 'unconfirmed' }],
+            },
+            { q: 'Where was Group 2 sent?', a: 'Boarding paused. I told them to wait in the Main Lounge until the aircraft was ready.' },
           ],
-          answer: 1,
         },
       },
       {
-        id: 'B',
-        title: 'Movement',
-        showMap: true,
-        items: [
-          {
-            id: 'notice',
-            title: 'Gate change notice',
-            body: 'T-22: Boarding paused. Group 2 to return to the Main Lounge until the aircraft is ready.',
-            events: [{ key: 'notice', t: 22, label: 'Group 2 sent back to the Main Lounge', status: 'confirmed' }],
-          },
-          {
-            id: 'note',
-            title: 'Staff note',
-            body: 'T-19: "Group 2 cleared." The scanner registered the group. Staff did not see the group reach the aircraft.',
-            events: [
-              { key: 'note', t: 19, label: '"Group 2 cleared" (scanner only; nobody saw them reach the aircraft)', status: 'unconfirmed' },
-            ],
-          },
-          {
-            id: 'stmt',
-            title: 'Relative statement',
-            body: '"Anjali went back to the lounge with the others to charge her phone. I stayed at the gate because they said ten minutes. Now boarding has resumed and I can\'t reach her."',
-            events: [{ key: 'stmt', t: 12, label: 'Relative: Anjali went to charge her phone in the lounge', status: 'unconfirmed' }],
-          },
-        ],
-        question: {
-          text: 'Where do the notice, the map and the statement point?',
-          options: ['The aircraft door', 'Holding Point H2', 'The main lounge'],
-          answer: 2,
-        },
-      },
-      {
-        id: 'C',
-        title: 'Baggage',
-        items: [
-          { id: 'tag', title: 'Bag tag', body: 'MA 613 · MENON/ANJALI · 1 checked bag' },
-          {
-            id: 'strip',
-            title: 'Bag event strip (fictional extract)',
-            body: 'ACCEPTED T-58 · SORTED T-46 · LOADED T-15 (confirmed).<br>Glossary: LOADED = bag confirmed on the aircraft.',
-            events: [
-              { key: 'bag', t: 46, label: 'Bag accepted and sorted', status: 'confirmed' },
-              { key: 'load', t: 15, label: 'Bag loaded onto the aircraft', status: 'confirmed' },
-            ],
-          },
-        ],
-        question: {
-          text: 'What does the bag record establish?',
-          options: [
-            'Anjali is on the aircraft',
-            'The bag is on the aircraft; it says nothing about where Anjali is',
-            'The bag must be removed',
+        id: 'relative',
+        kind: 'person',
+        title: 'Her husband',
+        talk: {
+          who: 'Dev',
+          role: "Anjali's husband",
+          intro: 'Boarding has restarted and I cannot find my wife.',
+          qa: [
+            {
+              q: 'When did you last see Anjali?',
+              a: 'At the gate, when they sent the group to the lounge. She said she would charge her phone and come straight back. I stayed because they said ten minutes.',
+              events: [{ key: 'stmt', t: 12, label: 'Husband: Anjali went to charge her phone in the lounge', status: 'unconfirmed' }],
+            },
+            { q: 'Is her bag on the plane?', a: 'Yes, we checked it in together.' },
+            { q: 'Have you tried calling?', a: 'No answer. She said her battery was low.' },
           ],
-          answer: 1,
         },
       },
+      { id: 'map', kind: 'map', title: 'Terminal map', note: MAP_NOTE },
+      {
+        id: 'tag',
+        kind: 'tag',
+        title: 'Bag tag',
+        heading: 'BAG TAG',
+        fields: [
+          ['Passenger', 'MENON/ANJALI'],
+          ['Flight', 'MA 613'],
+          ['Tag no.', 'MA613-771204'],
+          ['Pieces', '1 of 1'],
+        ],
+      },
+      {
+        id: 'bagterm',
+        kind: 'terminal',
+        title: 'Baggage terminal',
+        lock: { prompt: 'ENTER BAG TAG NUMBER', placeholder: '6 digits', answers: ['771204', 'MA613771204'], hint: 'The tag number is printed on the bag tag.' },
+        lines: ['BAG EVENTS · 771204', 'ACCEPTED  T-58', 'SORTED    T-46', 'LOADED    T-15  CONFIRMED', ...BAG_GLOSSARY],
+        events: [
+          { key: 'bag', t: 46, label: 'Bag accepted and sorted', status: 'confirmed' },
+          { key: 'load', t: 15, label: 'Bag loaded onto the aircraft', status: 'confirmed' },
+        ],
+      },
+    ],
+    ledger: [
+      { id: 'scan', label: 'Pass read at the gate', kind: 'choice', options: ['Confirmed', 'Not confirmed'], answer: 'Confirmed', why: 'The gate scan log shows the pass was read at T-30.' },
+      { id: 'onboard', label: 'Passenger confirmed at the aircraft door', kind: 'choice', options: ['Confirmed', 'Not confirmed'], answer: 'Not confirmed', why: '"Group 2 cleared" only means the scanner registered the group. Nobody saw Anjali reach the aircraft.' },
+      { id: 'bag', label: 'Bag confirmed loaded on the aircraft', kind: 'choice', options: ['Confirmed', 'Not confirmed'], answer: 'Confirmed', why: 'The bag is on the aircraft, which says nothing about where Anjali is.' },
     ],
     map: TERMINAL_MAP,
-    decision: {
-      groups: [
-        { title: 'Action', options: [{ id: 'hold', label: 'Hold and verify' }, { id: 'clear', label: 'Clear the flight' }] },
-        {
-          title: 'Send staff to check',
-          options: [
-            { id: 'door', label: 'Aircraft door' },
-            { id: 'H2', label: 'Holding Point H2' },
-            { id: 'lounge', label: 'Main lounge' },
-          ],
-        },
-      ],
-      correct: ['hold', 'lounge'],
-      messages: {
-        first: { clear: 'Flight released: passenger status unresolved. Recheck the evidence and decide again.' },
-        fallback: 'No confirmation at that location. Recheck the route evidence.',
-      },
-    },
+    decision: MAP_DECISION('lounge'),
     hints: [
       'The bag being loaded tells you where the bag is. What does it say about Anjali?',
-      "Match the relative's statement to a labeled place on the map.",
+      "Match her husband's account to a labeled place on the map.",
     ],
-    conflicts: [{ a: 'note', b: 'stmt', note: 'These two records cannot both describe where Anjali is.' }],
+    conflicts: [{ a: 'note', b: 'stmt', note: 'These two accounts cannot both describe where Anjali is.' }],
     pa: [
       {
         atLeft: 177,
@@ -315,12 +351,7 @@ export const CASES: CaseDef[] = [
         ml: 'ബോർഡിംഗ് പുനരാരംഭിച്ചു. യാത്രക്കാരി അഞ്ജലി മേനോൻ, ദയവായി ഗേറ്റ് 13-ലേക്ക് വരിക.',
         ar: 'استؤنف الصعود إلى الطائرة. على الراكبة أنجلي مينون التوجه إلى البوابة ١٣.',
       },
-      {
-        atLeft: 45,
-        en: 'This flight is on hold. Operations are reconciling passenger records.',
-        ml: 'ഈ വിമാനം തൽക്കാലം നിർത്തിവച്ചിരിക്കുന്നു. യാത്രക്കാരുടെ രേഖകൾ പരിശോധിക്കുകയാണ്.',
-        ar: 'هذه الرحلة متوقفة مؤقتاً. تقوم العمليات بمطابقة سجلات الركاب.',
-      },
+      HOLD_PA,
     ],
     winPa: {
       en: 'Passenger located and escorted to the gate.',
@@ -333,100 +364,123 @@ export const CASES: CaseDef[] = [
       ar: 'غادرت الرحلة إم إيه ٦١٣. لا تزال حالة إحدى الراكبات غير مؤكدة.',
     },
   },
+  /* ------------------------------------------------------------------ */
   {
     id: 'ravi',
     title: 'The Wrong Clock',
     tagline: 'Same moment, different clocks.',
     flight: 'MA 615',
     passenger: 'Ravi Menon',
-    intro:
-      'The system flagged Ravi Menon as a late no-show and queued his checked bag for offloading. Ravi insists he scanned in with time to spare. Read the clocks, then fix the record.',
+    opening: [
+      '23:19 · Gate 13',
+      'Malabar Air MA 615 to Dubai.',
+      'The system has flagged passenger Ravi Menon as a late no-show and queued his bag for offloading.',
+      'He says he was early. Read the clocks before anyone touches that bag.',
+    ],
     boardHold: 'NO-SHOW FLAG RAISED: BAG OFFLOAD PENDING',
     boardWin: 'RECORD CORRECTED: PASSENGER SCANNED ON TIME',
     boardLose: 'FLIGHT DEPARTED: RECORD LEFT UNRESOLVED',
     winText:
       "The scan log used Singapore time (SGT, UTC+8) while the gate closes on India time (IST). Converted, Ravi's pass was read at 22:55 IST, fifteen minutes before the gate closed. The flag and the offload request both rested on a misread clock.",
     loseText:
-      "The scan log was in SGT, which is 2 h 30 min ahead of IST. Converted, 01:25 SGT is 22:55 IST: fifteen minutes before the gate closed. The no-show flag and the offload request were a time-zone misread.",
-    bundles: [
+      'The scan log was in SGT, which is 2 h 30 min ahead of IST. Converted, 01:25 SGT is 22:55 IST: fifteen minutes before the gate closed. The no-show flag and the offload request were a time-zone misread.',
+    objects: [
       {
-        id: 'A',
-        title: 'Boarding',
-        items: [
-          {
-            id: 'pass',
-            title: 'Boarding pass stub',
-            body: 'MA 615 · RAVI MENON · Seat 14F · Departs 23:30 IST · Gate closes 23:10 IST',
-          },
-          {
-            id: 'flag',
-            title: 'System flag',
-            body: 'NO-SHOW FLAG: pass read after gate closed (scan 01:25). Pending: offload checked bag.',
-            events: [{ key: 'flag', t: null, when: 'flag', label: 'System flag: scanned after the gate closed', status: 'unconfirmed' }],
-          },
-          {
-            id: 'scan',
-            title: 'Gate scan log',
-            body: "Pass 14F read OK at 01:25 SGT (UTC+8). Logged by the airline's Singapore server.",
-            events: [{ key: 'scan', t: null, when: '01:25 SGT', label: 'Pass read at the gate', status: 'confirmed' }],
-          },
+        id: 'pass',
+        kind: 'pass',
+        title: 'Boarding pass',
+        fields: [
+          ['Passenger', 'RAVI MENON'],
+          ['Flight', 'MA 615'],
+          ['Route', 'CCJ to DXB'],
+          ['Seat', '14F'],
+          ['Departs', '23:30 IST'],
         ],
-        question: {
-          text: 'What does the flag rest on?',
-          options: [
-            'A scan time read as if it were local time',
-            'Ravi arriving after the gate closed',
-            'A broken scanner',
+      },
+      {
+        id: 'flagterm',
+        kind: 'terminal',
+        title: 'Check-in system',
+        lines: ['CHECK-IN SYSTEM · MA 615', 'PASSENGER: MENON/RAVI', 'STATUS: NO-SHOW FLAG', 'REASON: pass read after gate closed (scan 01:25)', 'PENDING: offload checked bag'],
+        events: [{ key: 'flag', t: null, when: 'FLAG', label: 'System flag: scanned after the gate closed', status: 'unconfirmed' }],
+      },
+      {
+        id: 'scanlog',
+        kind: 'terminal',
+        title: 'Scan log',
+        lock: { prompt: 'ENTER SEAT NUMBER TO OPEN THIS PASS RECORD', placeholder: 'e.g. 12A', answers: ['14F'], hint: 'The seat is printed on the boarding pass.' },
+        lines: ['AIRLINE SCAN LOG · SINGAPORE SERVER', 'PASS 14F  READ OK  01:25 SGT (UTC+8)', 'Times on this server are in SGT.'],
+        events: [{ key: 'scan', t: null, when: '01:25 SGT', label: 'Pass read at the gate', status: 'confirmed' }],
+      },
+      {
+        id: 'notice',
+        kind: 'paper',
+        title: 'Gate notice',
+        heading: 'GATE CLOSE NOTICE',
+        lines: ['Flight MA 615 departs 23:30 IST.', 'Gate 13 closes at 23:10 IST (India Standard Time).'],
+        events: [{ key: 'close', t: null, when: '23:10 IST', label: 'Gate closes', status: 'confirmed' }],
+      },
+      {
+        id: 'zones',
+        kind: 'clock',
+        title: 'World clock card',
+        heading: 'WORLD CLOCK CARD',
+        lines: ['IST (India) = UTC+5:30', 'SGT (Singapore) = UTC+8', 'GST (Dubai) = UTC+4', 'SGT is 2 h 30 min ahead of IST.', 'To get IST from SGT, subtract 2 h 30 min.'],
+      },
+      {
+        id: 'ravi',
+        kind: 'person',
+        title: 'The passenger',
+        talk: {
+          who: 'Ravi',
+          role: 'Passenger',
+          intro: 'I was early. I do not understand why my bag is being pulled.',
+          qa: [
+            {
+              q: 'When did you reach the gate?',
+              a: 'A little before eleven at night. I was not watching the clock, but I was not late.',
+              events: [{ key: 'ravi', t: null, when: '~23:00', label: 'Ravi: arrived a little before 23:00', status: 'unconfirmed' }],
+            },
+            { q: 'What happened at the scanner?', a: 'It beeped green. The agent nodded and I went to find a seat.' },
+            { q: 'Why are you flying to Dubai?', a: 'My daughter lives there. This is my first visit.' },
           ],
-          answer: 0,
         },
       },
       {
-        id: 'B',
-        title: 'Clocks',
-        items: [
-          {
-            id: 'close',
-            title: 'Gate close notice',
-            body: 'Gate 13 closes at 23:10 IST (India Standard Time).',
-            events: [{ key: 'close', t: null, when: '23:10 IST', label: 'Gate closes', status: 'confirmed' }],
-          },
-          {
-            id: 'zones',
-            title: 'Time zone card',
-            body: 'IST = UTC+5:30 · SGT = UTC+8 · GST (Dubai) = UTC+4.<br>SGT is 2 h 30 min ahead of IST. To get IST, subtract 2 h 30 min from SGT.',
-          },
-        ],
-        question: {
-          text: 'When was the pass read, in IST?',
-          options: ['01:25 IST, after the gate closed', '22:55 IST, 15 minutes before it closed', '03:55 IST'],
-          answer: 1,
-        },
-        onCorrect: [
-          { key: 'conv', t: null, when: '22:55 IST', label: 'Scan converted: 15 minutes before gate close', status: 'confirmed' },
+        id: 'tag',
+        kind: 'tag',
+        title: 'Bag tag',
+        heading: 'BAG TAG',
+        fields: [
+          ['Passenger', 'MENON/RAVI'],
+          ['Flight', 'MA 615'],
+          ['Tag no.', 'MA615-903377'],
+          ['Pieces', '1 of 1'],
         ],
       },
       {
-        id: 'C',
-        title: 'Baggage',
-        items: [
-          { id: 'tag', title: 'Bag tag', body: 'MA 615 · MENON/RAVI · 1 checked bag' },
-          {
-            id: 'strip',
-            title: 'Bag event strip (fictional extract)',
-            body: 'ACCEPTED 22:10 IST · SORTED 22:31 IST · OFFLOAD REQUEST: pending (raised from the no-show flag).',
-            events: [
-              { key: 'bag', t: null, when: '22:31 IST', label: 'Bag accepted and sorted', status: 'confirmed' },
-              { key: 'off', t: null, when: 'pending', label: 'Offload request raised from the no-show flag', status: 'unconfirmed' },
-            ],
-          },
+        id: 'bagterm',
+        kind: 'terminal',
+        title: 'Baggage terminal',
+        lock: { prompt: 'ENTER BAG TAG NUMBER', placeholder: '6 digits', answers: ['903377', 'MA615903377'], hint: 'The tag number is printed on the bag tag.' },
+        lines: ['BAG EVENTS · 903377', 'ACCEPTED  22:10 IST', 'SORTED    22:31 IST', 'OFFLOAD REQUEST: pending (raised from the no-show flag)'],
+        events: [
+          { key: 'bag', t: null, when: '22:31 IST', label: 'Bag accepted and sorted', status: 'confirmed' },
+          { key: 'off', t: null, when: 'PENDING', label: 'Offload request raised from the no-show flag', status: 'unconfirmed' },
         ],
-        question: {
-          text: 'What should happen to the offload request?',
-          options: ['Proceed: he missed the gate', 'Cancel it: it rests on a misread time', 'Wait until Ravi explains'],
-          answer: 1,
-        },
       },
+    ],
+    ledger: [
+      {
+        id: 'ist',
+        label: 'Pass read at (IST, 24h)',
+        kind: 'time',
+        answer: '22:55',
+        why: '01:25 SGT minus 2 h 30 min = 22:55 IST.',
+        onOk: [{ key: 'conv', t: null, when: '22:55 IST', label: 'Scan converted: 15 minutes before gate close', status: 'confirmed' }],
+      },
+      { id: 'before', label: 'Read before the gate closed (23:10 IST)?', kind: 'choice', options: ['Yes', 'No'], answer: 'Yes', why: '22:55 is 15 minutes before 23:10.' },
+      { id: 'flag', label: 'The no-show flag is', kind: 'choice', options: ['Valid', 'Not valid'], answer: 'Not valid', why: 'The flag compared an SGT clock time with an IST gate time.' },
     ],
     decision: {
       groups: [
@@ -469,12 +523,7 @@ export const CASES: CaseDef[] = [
         ml: 'ഗേറ്റ് 13 ഇന്ത്യൻ സമയം രാത്രി 11.10-ന് അടയ്ക്കുമെന്ന് യാത്രക്കാരെ ഓർമ്മിപ്പിക്കുന്നു.',
         ar: 'نذكّر الركاب بأن البوابة ١٣ ستُغلق عند الحادية عشرة وعشر دقائق بتوقيت الهند.',
       },
-      {
-        atLeft: 45,
-        en: 'This flight is on hold. Operations are reviewing a passenger record.',
-        ml: 'ഈ വിമാനം തൽക്കാലം നിർത്തിവച്ചിരിക്കുന്നു. ഒരു യാത്രക്കാരന്റെ രേഖ പരിശോധിക്കുകയാണ്.',
-        ar: 'هذه الرحلة متوقفة مؤقتاً. تراجع العمليات سجل أحد الركاب.',
-      },
+      { ...HOLD_PA, en: 'This flight is on hold. Operations are reviewing a passenger record.' },
     ],
     winPa: {
       en: 'Record corrected. Passenger scanned on time.',

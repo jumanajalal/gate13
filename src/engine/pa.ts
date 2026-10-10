@@ -22,6 +22,8 @@ export function unlock() {
   }
 }
 
+export const getCtx = () => ctx;
+
 export function chime() {
   if (!ctx) return;
   const now = ctx.currentTime;

@@ -6,11 +6,11 @@
 The board reads DEPARTURE HOLD: PASSENGER STATUS UNCONFIRMED and blinks. A sealed envelope marked INCIDENT FILE sits next to it.
 
 ## 90-second core (round 1)
-Draw an envelope. Inspect two bundles, read the glossary, spot the CONFLICT on the timeline, pick an action and a place to check. The board flips with the outcome.
+Draw an envelope. Search the desk, crack a locked terminal with a code from another prop, question a witness, spot the red string on the wall, file the ledger, then radio operations. The board flips with the outcome.
 
 ## 2-minute finalist script
 1. (15 s) Premise: records say "scanned", people say "not there". What do the records really prove?
-2. (60 s) Live run on Case 1: scan two cards, show UNCONFIRMED vs CONFIRMED, show the conflict, decide, board flips.
+2. (60 s) Live run on Case 1: unlock the terminal with the seat number, ask one witness, show the red string between the two accounts, file the ledger, radio, board flips.
 3. (25 s) Under the hood: deterministic event model and contradiction checker, no AI judging truth; every scan is an automated event; works fully offline.
 4. (20 s) Replay: three cases, hard mode where the passenger moves, leaderboard, printable evidence kit.
 

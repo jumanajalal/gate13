@@ -1,10 +1,10 @@
 import { caseById } from './cases';
-import type { CaseDef, EvEvent } from './types';
+import type { CaseDef, EvEvent, Obj, Row } from './types';
 
 export const LIMIT = 180; // seconds
 export const WRONG_PENALTY = 5;
 export const HINT_PENALTY = 3;
-export const EVIDENCE_POINTS = 10;
+export const EVIDENCE_POINTS = 10; // per ledger row accepted on the first filing
 export const DECISION_POINTS = 20;
 export const HARD_BONUS = 10;
 
@@ -20,7 +20,7 @@ export interface Result {
 }
 
 export interface State {
-  phase: 'home' | 'play' | 'result';
+  phase: 'home' | 'intro' | 'play' | 'result';
   caseId: string;
   hard: boolean;
   left: number;
@@ -28,8 +28,14 @@ export interface State {
   hints: number;
   wrong: number;
   opened: Record<string, true>;
-  answers: Record<string, number>;
+  unlocked: Record<string, true>;
+  lockFails: Record<string, number>;
+  asked: Record<string, true>;
   events: Record<string, EvEvent>;
+  ledger: Record<string, string>;
+  ledgerOk: Record<string, true>;
+  ledgerFailed: Record<string, true>;
+  ledgerMsg: string;
   picks: [string | null, string | null];
   msg: string;
   banner: string;
@@ -39,9 +45,13 @@ export interface State {
 
 export type Action =
   | { type: 'START'; caseId: string; hard: boolean }
+  | { type: 'BEGIN' }
   | { type: 'TICK' }
-  | { type: 'INSPECT'; itemId: string }
-  | { type: 'ANSWER'; bundleId: string; index: number }
+  | { type: 'OPEN'; objId: string }
+  | { type: 'UNLOCK'; objId: string; code: string }
+  | { type: 'ASK'; objId: string; qi: number }
+  | { type: 'SET_ROW'; rowId: string; value: string }
+  | { type: 'FILE_LEDGER' }
   | { type: 'HINT' }
   | { type: 'PICK'; group: 0 | 1; value: string }
   | { type: 'SUBMIT' }
@@ -56,14 +66,39 @@ export const initial: State = {
   hints: 0,
   wrong: 0,
   opened: {},
-  answers: {},
+  unlocked: {},
+  lockFails: {},
+  asked: {},
   events: {},
+  ledger: {},
+  ledgerOk: {},
+  ledgerFailed: {},
+  ledgerMsg: '',
   picks: [null, null],
   msg: '',
   banner: '',
   movesApplied: 0,
   result: null,
 };
+
+export const normCode = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/** "2255", "22.55", "22:55" and "2:55" (as 02:55) all normalise to HH:MM. */
+export function normTime(v: string): string {
+  const digits = v.replace(/\D/g, '');
+  if (digits.length < 3 || digits.length > 4) return '';
+  const d = digits.padStart(4, '0');
+  return `${d.slice(0, 2)}:${d.slice(2)}`;
+}
+
+export function rowCorrect(r: Row, value: string | undefined): boolean {
+  if (!value) return false;
+  return r.kind === 'time' ? normTime(value) === r.answer : value === r.answer;
+}
+
+export function lockOk(o: Obj, code: string): boolean {
+  return !!o.lock && o.lock.answers.some((a) => normCode(a) === normCode(code));
+}
 
 /** Correct answer for both decision groups at this moment (the passenger may have moved in hard mode). */
 export function correctNow(s: State, c: CaseDef = caseById(s.caseId)): [string, string] {
@@ -93,28 +128,38 @@ function finish(s: State, win: boolean): State {
   return { ...s, phase: 'result', result: computeResult(s, win) };
 }
 
-export function bundleDone(s: State, c: CaseDef, bundleId: string): boolean {
-  const b = c.bundles.find((x) => x.id === bundleId);
-  return !!b && b.items.every((i) => s.opened[i.id]);
-}
-
-/** Conflict notes whose two events are both on the timeline. Deterministic: no AI judges truth. */
+/** Conflict notes whose two events are both on the wall. Deterministic: no AI judges truth. */
 export function detectConflicts(events: Record<string, EvEvent>, c: CaseDef): string[] {
   return c.conflicts.filter((x) => events[x.a] && events[x.b]).map((x) => x.note);
 }
 
-/** Map pin: shown once the movement bundle is answered correctly, and follows the passenger in hard mode. */
+export const radioUnlocked = (s: State, c: CaseDef) => c.ledger.every((r) => s.ledgerOk[r.id]);
+
+/** Hard mode only: the last place a staff update reported the passenger. */
 export function pinNode(s: State, c: CaseDef): string | null {
-  const mb = c.bundles.find((b) => b.showMap);
-  if (!mb || s.answers[mb.id] !== mb.question.answer) return null;
-  return correctNow(s, c)[1];
+  if (!s.hard || s.movesApplied === 0) return null;
+  return (c.moves ?? [])[s.movesApplied - 1]?.loc ?? null;
+}
+
+export function askedFor(s: State, objId: string): number[] {
+  return Object.keys(s.asked)
+    .filter((k) => k.startsWith(objId + ':'))
+    .map((k) => Number(k.split(':')[1]));
+}
+
+function withEvents(events: Record<string, EvEvent>, list?: EvEvent[]) {
+  const out = { ...events };
+  for (const e of list ?? []) out[e.key] = e;
+  return out;
 }
 
 export function reducer(s: State, a: Action): State {
   const c = caseById(s.caseId);
   switch (a.type) {
     case 'START':
-      return { ...initial, phase: 'play', caseId: a.caseId, hard: a.hard };
+      return { ...initial, phase: 'intro', caseId: a.caseId, hard: a.hard };
+    case 'BEGIN':
+      return s.phase === 'intro' ? { ...s, phase: 'play' } : s;
     case 'HOME':
       return { ...initial };
     case 'TICK': {
@@ -129,25 +174,71 @@ export function reducer(s: State, a: Action): State {
       }
       return next.left <= 0 ? finish(next, false) : next;
     }
-    case 'INSPECT': {
-      if (s.phase !== 'play' || s.opened[a.itemId]) return s;
-      const item = c.bundles.flatMap((b) => b.items).find((i) => i.id === a.itemId);
-      if (!item) return s;
-      const events = { ...s.events };
-      for (const e of item.events ?? []) events[e.key] = e;
-      return { ...s, opened: { ...s.opened, [a.itemId]: true }, events };
-    }
-    case 'ANSWER': {
-      const b = c.bundles.find((x) => x.id === a.bundleId);
-      if (s.phase !== 'play' || !b || s.answers[b.id] !== undefined || !bundleDone(s, c, b.id)) return s;
-      const ok = a.index === b.question.answer;
-      const events = { ...s.events };
-      if (ok) for (const e of b.onCorrect ?? []) events[e.key] = e;
+    case 'OPEN': {
+      const o = c.objects.find((x) => x.id === a.objId);
+      if (s.phase !== 'play' || !o) return s;
+      const locked = !!o.lock && !s.unlocked[o.id];
       return {
         ...s,
-        answers: { ...s.answers, [b.id]: a.index },
-        evidence: s.evidence + (ok ? EVIDENCE_POINTS : 0),
+        opened: { ...s.opened, [o.id]: true },
+        events: locked ? s.events : withEvents(s.events, o.events),
+      };
+    }
+    case 'UNLOCK': {
+      const o = c.objects.find((x) => x.id === a.objId);
+      if (s.phase !== 'play' || !o?.lock || s.unlocked[o.id]) return s;
+      if (!lockOk(o, a.code)) return { ...s, lockFails: { ...s.lockFails, [o.id]: (s.lockFails[o.id] ?? 0) + 1 } };
+      return {
+        ...s,
+        unlocked: { ...s.unlocked, [o.id]: true },
+        opened: { ...s.opened, [o.id]: true },
+        events: withEvents(s.events, o.events),
+      };
+    }
+    case 'ASK': {
+      const o = c.objects.find((x) => x.id === a.objId);
+      const qa = o?.talk?.qa[a.qi];
+      const key = `${a.objId}:${a.qi}`;
+      if (s.phase !== 'play' || !o || !qa || s.asked[key]) return s;
+      return {
+        ...s,
+        asked: { ...s.asked, [key]: true },
+        opened: { ...s.opened, [o.id]: true },
+        events: withEvents(s.events, qa.events),
+      };
+    }
+    case 'SET_ROW':
+      return s.ledgerOk[a.rowId] ? s : { ...s, ledger: { ...s.ledger, [a.rowId]: a.value } };
+    case 'FILE_LEDGER': {
+      if (s.phase !== 'play') return s;
+      const rows = c.ledger;
+      if (rows.some((r) => !s.ledgerOk[r.id] && !(s.ledger[r.id] ?? '').trim())) {
+        return { ...s, ledgerMsg: 'Fill in every row before filing.' };
+      }
+      let evidence = s.evidence;
+      let events = s.events;
+      const ok = { ...s.ledgerOk };
+      const failed = { ...s.ledgerFailed };
+      const bad: string[] = [];
+      for (const r of rows) {
+        if (ok[r.id]) continue;
+        if (rowCorrect(r, s.ledger[r.id])) {
+          ok[r.id] = true;
+          if (!failed[r.id]) evidence += EVIDENCE_POINTS;
+          events = withEvents(events, r.onOk);
+        } else {
+          failed[r.id] = true;
+          bad.push(r.label);
+        }
+      }
+      const all = rows.every((r) => ok[r.id]);
+      return {
+        ...s,
+        evidence,
         events,
+        ledgerOk: ok,
+        ledgerFailed: failed,
+        ledgerMsg: all ? 'Ledger accepted. The radio is unlocked.' : `Operations rejected: ${bad.join('; ')}. Recheck the records.`,
       };
     }
     case 'HINT':
@@ -158,12 +249,11 @@ export function reducer(s: State, a: Action): State {
       return { ...s, picks };
     }
     case 'SUBMIT': {
-      if (s.phase !== 'play' || !s.picks[0] || !s.picks[1]) return s;
+      if (s.phase !== 'play' || !radioUnlocked(s, c) || !s.picks[0] || !s.picks[1]) return s;
       const want = correctNow(s, c);
       if (s.picks[0] === want[0] && s.picks[1] === want[1]) return finish(s, true);
-      const msg = c.decision.messages.first[s.picks[0]] ?? c.decision.messages.fallback;
-      const msgFinal = s.picks[0] !== want[0] ? msg : c.decision.messages.fallback;
-      return { ...s, wrong: s.wrong + 1, msg: msgFinal, picks: [null, null] };
+      const msg = s.picks[0] !== want[0] ? c.decision.messages.first[s.picks[0]] ?? c.decision.messages.fallback : c.decision.messages.fallback;
+      return { ...s, wrong: s.wrong + 1, msg, picks: [null, null] };
     }
     default:
       return s;

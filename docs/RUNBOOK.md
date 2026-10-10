@@ -10,13 +10,13 @@
 
 ## Between players (reset checklist)
 1. Back to start screen (or let the result screen time out).
-2. Put cards back in the envelope in order: cover, then bundles A, B, C.
+2. Put the cards back in the envelope: cover first, then the props in any order.
 3. Draw a different envelope (the app avoids repeating the last case).
 
 ## If something breaks
 | Problem | Fallback |
 |---|---|
-| Camera will not scan | Use the on-screen Inspect buttons; everything still works |
+| Camera will not scan | Open the object from the desk; everything still works |
 | No sound / voices missing | Captions show every line; or use recorded clips in `public/audio` |
 | Laptop dies | Phone on the LAN URL; or the printed paper packet works with no screen |
 | Judge stuck for 60 s | Offer the hint button (-3), or hand them a card |

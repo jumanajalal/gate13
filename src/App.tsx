@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { CASES, caseById } from './engine/cases';
 import { initial, liveScore, reducer, LIMIT } from './engine/game';
-import { addEntry, loadBoard, loadSettings, saveSettings, type Settings } from './engine/store';
+import { loadBoard, loadSettings, saveSettings, type Settings } from './engine/store';
 import { announce, silence, unlock, type Line } from './engine/pa';
+import { setSfx, sfx } from './engine/sfx';
+import type { Obj } from './engine/types';
 import { Board } from './components/Board';
-import { BundleView } from './components/BundleView';
-import { Timeline } from './components/Timeline';
-import { Decision } from './components/Decision';
+import { Desk } from './components/Desk';
+import { Inspect } from './components/Inspect';
+import { Wall } from './components/Wall';
+import { Intro } from './components/Intro';
+import { Report } from './components/Report';
 import { Leaderboard } from './components/Leaderboard';
 import { Scanner } from './components/Scanner';
 import Props from './components/Props';
@@ -24,15 +28,15 @@ export default function App() {
 function Game() {
   const [s, dispatch] = useReducer(reducer, initial);
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [tab, setTab] = useState<'A' | 'B' | 'C'>('A');
+  const [room, setRoom] = useState<'desk' | 'wall'>('desk');
+  const [openId, setOpenId] = useState<string | null>(null);
   const [scan, setScan] = useState<null | 'envelope' | 'evidence'>(null);
   const [toast, setToast] = useState('');
   const [caption, setCaption] = useState<Line | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [name, setName] = useState('');
   const [, force] = useState(0);
   const lastCase = useRef('');
   const c = caseById(s.caseId);
+  setSfx(settings.sound);
 
   const say = useCallback(
     (line: Line, key?: string) => {
@@ -43,7 +47,7 @@ function Game() {
     [settings.sound],
   );
 
-  // 1 second clock
+  // 1 second clock (only while playing; the cold open is untimed)
   useEffect(() => {
     if (s.phase !== 'play') return;
     const id = window.setInterval(() => dispatch({ type: 'TICK' }), 1000);
@@ -67,9 +71,8 @@ function Game() {
   // outcome announcement
   useEffect(() => {
     if (s.phase === 'result' && s.result) {
+      setOpenId(null);
       say(s.result.win ? c.winPa : c.losePa, `${c.id}-${s.result.win ? 'win' : 'lose'}`);
-      setSaved(false);
-      setName(`Team ${loadBoard().length + 1}`);
     }
     if (s.phase === 'home') {
       silence();
@@ -77,6 +80,22 @@ function Game() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.phase]);
+
+  // room sound effects
+  const prev = useRef({ fails: 0, unlocked: 0, rows: 0, wrong: 0, events: 0, conflicts: 0 });
+  useEffect(() => {
+    const p = prev.current;
+    const fails = Object.values(s.lockFails).reduce((a, b) => a + b, 0);
+    const unlocked = Object.keys(s.unlocked).length;
+    const rows = Object.keys(s.ledgerOk).length;
+    const events = Object.keys(s.events).length;
+    if (fails > p.fails) sfx.denied();
+    else if (unlocked > p.unlocked) sfx.granted();
+    else if (rows > p.rows) sfx.stamp();
+    else if (s.wrong > p.wrong) sfx.denied();
+    else if (events > p.events) sfx.open();
+    prev.current = { fails, unlocked, rows, wrong: s.wrong, events, conflicts: 0 };
+  }, [s.lockFails, s.unlocked, s.ledgerOk, s.wrong, s.events]);
 
   const flash = (m: string) => {
     setToast(m);
@@ -86,7 +105,8 @@ function Game() {
   const start = (caseId: string) => {
     unlock();
     lastCase.current = caseId;
-    setTab('A');
+    setRoom('desk');
+    setOpenId(null);
     setScan(null);
     dispatch({ type: 'START', caseId, hard: settings.hard });
   };
@@ -102,6 +122,11 @@ function Game() {
     saveSettings(n);
   };
 
+  const openObj = (o: Obj) => {
+    dispatch({ type: 'OPEN', objId: o.id });
+    setOpenId(o.id);
+  };
+
   const onScan = (payload: string) => {
     const parts = payload.split(':');
     if (parts[0] !== 'g13') return flash('Not a Gate 13 code.');
@@ -111,12 +136,10 @@ function Game() {
       return;
     }
     if (scan === 'evidence' && parts[1] === c.id) {
-      const b = c.bundles.find((x) => x.items.some((i) => i.id === parts[2]));
-      const it = b?.items.find((i) => i.id === parts[2]);
-      if (b && it) {
-        dispatch({ type: 'INSPECT', itemId: it.id });
-        setTab(b.id);
-        flash(`Added: ${it.title}`);
+      const o = c.objects.find((x) => x.id === parts[2]);
+      if (o) {
+        setRoom('desk');
+        openObj(o);
         setScan(null);
         return;
       }
@@ -124,7 +147,9 @@ function Game() {
     flash('That card belongs to a different case.');
   };
 
-  const status = s.phase === 'result' ? (s.result?.win ? c.boardWin : c.boardLose) : s.phase === 'play' ? c.boardHold : 'AWAITING INCIDENT FILE';
+  const status = s.phase === 'result' ? (s.result?.win ? c.boardWin : c.boardLose) : s.phase === 'home' ? 'AWAITING INCIDENT FILE' : c.boardHold;
+  const openObjDef = c.objects.find((o) => o.id === openId) ?? null;
+  const pinned = Object.keys(s.events).length;
 
   return (
     <>
@@ -138,107 +163,57 @@ function Game() {
         {s.phase === 'home' && (
           <>
             <h1>Last call at Gate 13</h1>
-            <p>
-              Travel records say one thing. People say another. You have {LIMIT / 60} minutes to work out what the records really prove, then tell operations what to do. Everything here is fictional.
+            <p className="lede">
+              The system says one thing. The people say another. You have {LIMIT / 60} minutes to search the gate, pin the facts on the wall, work out what the records really prove, and radio operations. Everything here is fictional.
             </p>
+            <ol className="how">
+              <li><b>Search the desk.</b> Open props, crack locked terminals, question witnesses.</li>
+              <li><b>Read the wall.</b> Facts pin themselves. Contradictions get a red string.</li>
+              <li><b>File the ledger, then radio.</b> The radio only unlocks when your ledger is right.</li>
+            </ol>
             <button className="pri big" onClick={draw}>Draw an envelope</button>
             <button onClick={() => setScan('envelope')}>Scan an envelope QR</button>
             <div className="card opts">
-              <label>
-                <input type="checkbox" checked={settings.sound} onChange={() => toggle('sound')} /> Sound and announcements
-              </label>
-              <label>
-                <input type="checkbox" checked={settings.hard} onChange={() => toggle('hard')} /> Hard mode: the passenger can move (+10 points)
-              </label>
+              <label><input type="checkbox" checked={settings.sound} onChange={() => toggle('sound')} /> Sound and announcements</label>
+              <label><input type="checkbox" checked={settings.hard} onChange={() => toggle('hard')} /> Hard mode: the passenger can move (+10 points)</label>
             </div>
             <details>
               <summary>Facilitator: pick a case, print props</summary>
               <div className="card">
                 {CASES.map((x) => (
-                  <div key={x.id}>
-                    <button onClick={() => start(x.id)}>{x.title}</button> <span className="mut">{x.tagline}</span>
-                  </div>
+                  <div key={x.id}><button onClick={() => start(x.id)}>{x.title}</button> <span className="mut">{x.tagline}</span></div>
                 ))}
-                <p>
-                  <a href="#/props">Open the printable evidence kit</a>
-                </p>
+                <p><a href="#/props">Open the printable evidence kit</a></p>
               </div>
             </details>
             <Leaderboard onChange={() => force((n) => n + 1)} />
           </>
         )}
 
+        {s.phase === 'intro' && <Intro c={c} onBegin={() => dispatch({ type: 'BEGIN' })} />}
+
         {s.phase === 'play' && (
           <>
-            <p className="intro">{c.intro}</p>
+            <div className="rooms" role="tablist" aria-label="Rooms">
+              <button role="tab" aria-selected={room === 'desk'} className={room === 'desk' ? 'sel' : ''} onClick={() => setRoom('desk')}>Gate desk</button>
+              <button role="tab" aria-selected={room === 'wall'} className={room === 'wall' ? 'sel' : ''} onClick={() => setRoom('wall')}>Evidence wall ({pinned})</button>
+            </div>
             <div className="row">
-              <button onClick={() => setScan('evidence')}>Scan evidence card</button>
+              <button onClick={() => setScan('evidence')}>Scan a card</button>
               <span className="score">Score {liveScore(s)}</span>
+              <button disabled={s.hints >= 2} onClick={() => dispatch({ type: 'HINT' })}>Hint (-3)</button>
             </div>
             {s.banner && <div className="msg warn" role="status">{s.banner}</div>}
-            <div className="tabs" role="tablist">
-              {c.bundles.map((b) => (
-                <button key={b.id} role="tab" aria-selected={tab === b.id} className={tab === b.id ? 'sel' : ''} onClick={() => setTab(b.id)}>
-                  {b.title}
-                  {s.answers[b.id] !== undefined ? ' ✓' : ''}
-                </button>
-              ))}
-            </div>
-            <BundleView b={c.bundles.find((b) => b.id === tab)!} s={s} c={c} dispatch={dispatch} />
-            <Timeline s={s} c={c} />
-            <Decision s={s} c={c} dispatch={dispatch} />
-            <div className="row">
-              <button disabled={s.hints >= 2} onClick={() => dispatch({ type: 'HINT' })}>
-                Hint (-3)
-              </button>
-            </div>
-            {[...Array(s.hints)].map((_, i) => (
-              <div className="msg" key={i}>{c.hints[i]}</div>
-            ))}
+            {[...Array(s.hints)].map((_, i) => <div className="msg" key={i}>Supervisor: {c.hints[i]}</div>)}
+            {room === 'desk' ? <Desk c={c} s={s} onOpen={openObj} /> : <Wall s={s} c={c} dispatch={dispatch} />}
+            {room === 'desk' && <p className="mut center">Tip: facts you find are pinned on the evidence wall automatically.</p>}
           </>
         )}
 
-        {s.phase === 'result' && s.result && (
-          <>
-            <h1>{s.result.win ? 'Good call.' : 'Time ran out.'}</h1>
-            <div className="card">
-              <p>{s.result.win ? c.winText : c.loseText}</p>
-            </div>
-            <div className="card">
-              <h3>Score: {s.result.total}</h3>
-              <table>
-                <tbody>
-                  <tr><td>Evidence</td><td className="num">+{s.result.evidence}</td></tr>
-                  <tr><td>Decision</td><td className="num">+{s.result.decision}</td></tr>
-                  <tr><td>Speed</td><td className="num">+{s.result.speed}</td></tr>
-                  {s.hard && <tr><td>Hard mode</td><td className="num">+{s.result.hardBonus}</td></tr>}
-                  <tr><td>Hints</td><td className="num">-{s.result.hints}</td></tr>
-                  <tr><td>Wrong checks</td><td className="num">-{s.result.wrong}</td></tr>
-                </tbody>
-              </table>
-              {!saved ? (
-                <>
-                  <p className="lbl">Team name</p>
-                  <input value={name} maxLength={20} onChange={(e) => setName(e.target.value.replace(/[<>&]/g, ''))} aria-label="Team name" />
-                  <button
-                    className="pri"
-                    onClick={() => {
-                      addEntry({ name: name.trim() || 'Team', points: s.result!.total, caseId: s.caseId, hard: s.hard, at: Date.now() });
-                      setSaved(true);
-                    }}
-                  >
-                    Save to leaderboard
-                  </button>
-                </>
-              ) : (
-                <p>Saved.</p>
-              )}
-            </div>
-            <button onClick={() => dispatch({ type: 'HOME' })}>Back to start</button>
-          </>
-        )}
+        {s.phase === 'result' && s.result && <Report s={s} c={c} dispatch={dispatch} />}
       </main>
 
+      {openObjDef && s.phase === 'play' && <Inspect o={openObjDef} c={c} s={s} dispatch={dispatch} onClose={() => setOpenId(null)} />}
       {caption && (
         <div className="captions" aria-live="polite">
           {caption.en && <div>{caption.en}</div>}
