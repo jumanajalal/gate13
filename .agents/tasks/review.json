@@ -1,0 +1,9 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    "REOPEN gating too narrow — reducer transitions on REOPEN only when s.outcome === 'cleared'; a timeout result returns unchanged state. Add || s.outcome === 'timeout' to allow timeout players to reopen. The test suite passes because the REOPEN test only exercises the cleared path.",
+    "showManual fires too late — Inspect computes showManual as !!(o.manualAlias && !s.opened[o.id] && !locked), but openObj dispatches OPEN before pushing the layer, so s.opened[o.id] is already true when Inspect renders. For unlocked objects with manualAlias (pass, notice, receipt, tag) the manual fallback details block never appears. Fix: do not dispatch OPEN in openObj for objects that have manualAlias and are not locked; let the inspect sheet handle the open via ManualScanField.",
+    "ManualScanField UX gap — even if showManual were fixed, the details block collapses on the next render after OPEN fires because s.opened transitions synchronously. ManualScanField needs a local 'confirmed' state that keeps the success message visible for at least one render after dispatch."
+  ],
+  "reviewDoc": "c:\\Users\\LENOVO\\Downloads\\gate13-repo (1)\\gate13\\.agents\\tasks\\review.md"
+}

@@ -21,7 +21,8 @@ function startCase(title: string) {
 describe('Gate 13 room: play whole cases by clicking inside the room', () => {
   it('opens on the start screen and runs the cold open before the clock starts', () => {
     render(<App />);
-    expect(screen.getByText('Last call at Gate 13')).toBeTruthy();
+    // Home screen shows the unique LAST CALL · INCIDENT INVESTIGATION subtitle
+    expect(screen.getByText('LAST CALL · INCIDENT INVESTIGATION')).toBeTruthy();
     click('The Group 3 Redirect');
     expect(screen.getByLabelText('Incident briefing')).toBeTruthy();
     expect(screen.queryByLabelText('Gate counter')).toBeNull(); // not in the room yet
@@ -58,13 +59,13 @@ describe('Gate 13 room: play whole cases by clicking inside the room', () => {
     expect(screen.getByRole('dialog', { name: 'Talking to Sana' })).toBeTruthy();
     click('What does "Group 3 cleared" mean?');
     expect(screen.getByText(/did not walk them to the aircraft/)).toBeTruthy();
-    click('Leave');
+    click('Leave ✕');
 
     // turn through the room to the seating area and talk to her brother
     go('Seating area');
     click('Her brother');
     click('When did you last see Nila?');
-    click('Leave');
+    click('Leave ✕');
 
     // the operations wall: the evidence board shows a contradiction and the radio is locked
     go('Operations wall');

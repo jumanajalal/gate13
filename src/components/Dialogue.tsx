@@ -26,7 +26,6 @@ export function Dialogue({ o, s, dispatch, onClose }: { o: Obj; s: State; dispat
   const remaining = t.qa.map((q, qi) => ({ q, qi })).filter(({ qi }) => !done.includes(qi));
   return (
     <div className="dlg" role="dialog" aria-modal="true" aria-label={`Talking to ${t.who}`}>
-      <button className="skipbtn" onClick={onClose}>Leave</button>
       <div className="portrait"><Portrait look={LOOKS[o.id] ?? LOOKS.relative} /></div>
       <div className="dlgpanel" onClick={skip}>
         <div className="nametab">{t.who} <span>{t.role}</span></div>
@@ -36,8 +35,9 @@ export function Dialogue({ o, s, dispatch, onClose }: { o: Obj; s: State; dispat
           {typed && remaining.map(({ q, qi }) => (
             <button key={qi} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'ASK', objId: o.id, qi }); }}>{q.q}</button>
           ))}
-          {typed && remaining.length === 0 && <p className="mut">Nothing more to ask. Their account is pinned on the evidence board.</p>}
+          {typed && remaining.length === 0 && <p className="mut">Nothing more to ask.</p>}
         </div>
+        <button className="dlg-leave" onClick={(e) => { e.stopPropagation(); onClose(); }}>Leave ✕</button>
       </div>
     </div>
   );

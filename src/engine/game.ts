@@ -270,7 +270,7 @@ export function reducer(s: State, a: Action): State {
       return { ...s, wrong: s.wrong + 1, msg, picks: [null, null] };
     }
     case 'REOPEN':
-      if (s.phase !== 'result' || s.outcome !== 'cleared') return s;
+      if (s.phase !== 'result' || (s.outcome !== 'cleared' && s.outcome !== 'timeout')) return s;
       return { ...s, phase: 'play', result: null, outcome: null, wrong: s.wrong + 1,
                picks: [null, null], msg: 'Incident reopened. Passenger status remains unresolved.' };
     default:

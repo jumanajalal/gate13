@@ -268,6 +268,19 @@ describe('outcome and mapOverlay', () => {
     expect(s.result).toBeNull();
   });
 
+  it('REOPEN transitions from timeout back to play with wrong incremented', () => {
+    let s = begin('nila');
+    for (let i = 0; i < LIMIT; i++) s = reducer(s, { type: 'TICK' });
+    expect(s.phase).toBe('result');
+    expect(s.outcome).toBe('timeout');
+    const wrongBefore = s.wrong;
+    s = reducer(s, { type: 'REOPEN' });
+    expect(s.phase).toBe('play');
+    expect(s.outcome).toBeNull();
+    expect(s.wrong).toBe(wrongBefore + 1);
+    expect(s.result).toBeNull();
+  });
+
   it('REOPEN does nothing from a non-cleared result', () => {
     let s = fileCorrectLedger(investigate(begin('nila')));
     const c = caseById('nila');

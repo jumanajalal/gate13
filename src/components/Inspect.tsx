@@ -8,16 +8,27 @@ import { Typed } from './Typed';
 function ManualScanField({ o, dispatch }: { o: Obj; dispatch: (a: Action) => void }) {
   const [val, setVal] = useState('');
   const [err, setErr] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const alias = o.manualAlias!;
 
   const tryMatch = () => {
     if (val.trim().toUpperCase() === alias.toUpperCase()) {
+      setConfirmed(true);
       dispatch({ type: 'OPEN', objId: o.id });
       setErr(false);
     } else {
       setErr(true);
     }
   };
+
+  if (confirmed) {
+    return (
+      <div className="term manualfield">
+        <div className="tl ok">&gt; ARTIFACT REGISTERED — {alias}</div>
+        <div className="tl dim">&gt; Facts pinned to evidence board.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="term manualfield">
@@ -130,6 +141,11 @@ function LockPanel({ o, s, dispatch }: { o: Obj; s: State; dispatch: (a: Action)
 export function Inspect({ o, c, s, dispatch, onClose }: { o: Obj; c: CaseDef; s: State; dispatch: (a: Action) => void; onClose: () => void }) {
   const locked = !!o.lock && !s.unlocked[o.id];
   const pins = locked ? 0 : (o.events?.length ?? 0);
+  // Show the manual fallback when the object has a manualAlias, is not locked, and has
+  // not yet been opened. We do NOT gate on s.opened here to preserve the ManualScanField's
+  // local "confirmed" display state — it handles its own post-dispatch visibility.
+  // openObj in App.tsx defers the OPEN dispatch for manualAlias objects so s.opened[o.id]
+  // remains false when this component first renders from a room click.
   const showManual = !!(o.manualAlias && !s.opened[o.id] && !locked);
   return (
     <div className="layer" role="dialog" aria-modal="true" aria-label={o.title} onClick={onClose}>

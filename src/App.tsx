@@ -172,7 +172,11 @@ function Game() {
   const pop = () => setLayers((ls) => ls.slice(0, -1));
 
   const openObj = (o: Obj) => {
-    dispatch({ type: 'OPEN', objId: o.id });
+    // If the object has a manualAlias and is not locked, defer the OPEN dispatch to the
+    // Inspect sheet's ManualScanField — dispatching here would set s.opened[o.id]=true
+    // before Inspect renders, making showManual evaluate to false and hiding the fallback.
+    const needsManual = !!(o.manualAlias && !(o.kind === 'person') && !(o.lock));
+    if (!needsManual) dispatch({ type: 'OPEN', objId: o.id });
     push({ type: o.kind === 'person' ? 'talk' : 'obj', id: o.id });
   };
 
@@ -206,7 +210,11 @@ function Game() {
       const o = c.objects.find((x) => x.id === parts[2]);
       if (o) {
         setScan(null);
-        openObj(o);
+        // QR scanner always dispatches OPEN directly — this is the canonical scan path.
+        // openObj skips OPEN for manualAlias objects (to preserve the manual fallback UX),
+        // so we dispatch it explicitly here before opening the inspect sheet.
+        dispatch({ type: 'OPEN', objId: o.id });
+        push({ type: o.kind === 'person' ? 'talk' : 'obj', id: o.id });
         return;
       }
     }
