@@ -143,7 +143,83 @@ describe('Gate 13 room: play whole cases by clicking inside the room', () => {
     window.location.hash = '#/props';
     render(<App />);
     expect(screen.getByText('Gate 13 evidence kit')).toBeTruthy();
-    expect(screen.getAllByText(/Envelope:/).length).toBe(3);
+    expect(screen.getAllByText(/Envelope:/).length).toBe(5);
     window.location.hash = '';
+  });
+
+  it('home screen displays the Case Archive dossiers with status badges', () => {
+    render(<App />);
+    expect(screen.getByLabelText('Incident Archive')).toBeTruthy();
+    expect(screen.getAllByText(/AVAILABLE|CLEARED/).length).toBe(5);
+  });
+
+  it('Suitcase scenario: UI click-through unlocks sortation terminal, files ledger, transmits and wins', () => {
+    startCase('The Suitcase That Travelled Alone');
+    // Turn to Baggage wall: tag and locked terminal
+    go('Baggage wall');
+    click('Baggage routing tag');
+    expect(screen.getByText('AZIZ/TARIQ')).toBeTruthy();
+    click('Close');
+
+    // Unlock sortation terminal using tag number 883104
+    click('Sortation terminal (locked)');
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '883104' } });
+    click('Unlock');
+    expect(screen.getByText(/AUTOMATED SORTATION LOG/)).toBeTruthy();
+    click('Close');
+
+    // Operations wall: ledger and radio
+    go('Operations wall');
+    click('Ledger clipboard');
+    const ledger = within(screen.getByLabelText('Operations ledger'));
+    fireEvent.click(ledger.getByRole('button', { name: 'London via Doha (DOH/LHR)' }));
+    fireEvent.click(ledger.getByRole('button', { name: 'Still on Gate 13 cart' }));
+    fireEvent.click(ledger.getByRole('button', { name: 'Optical scanner misread DOH as DXB' }));
+    fireEvent.click(ledger.getByRole('button', { name: 'File ledger' }));
+    expect(screen.getByText(/Ledger accepted/)).toBeTruthy();
+    click('Close');
+
+    // Radio: hold bag, dispatch to Gate 4
+    click('Radio');
+    click('Hold bag from MA 613');
+    click('Dispatch to Gate 4 (QR 517)');
+    click('Transmit');
+    expect(screen.getByText('RESOLVED')).toBeTruthy();
+    expect(screen.getByText(/Master Investigator/)).toBeTruthy();
+  });
+
+  it('Phone scenario: UI click-through reads phone screen, unlocks lookup, files ledger, transmits and wins', () => {
+    startCase('The Phone Left Behind');
+    // Seating area: phone and passenger stub
+    go('Seating area');
+    click('Lost smartphone');
+    expect(screen.getByText(/Gulf Medical Summit/)).toBeTruthy();
+    click('Close');
+
+    // Gate counter: manifest terminal unlocked with 4192
+    go('Gate counter');
+    click('Manifest lookup terminal (locked)');
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '4192' } });
+    click('Unlock');
+    expect(screen.getByText(/DR. FARHAN AHMAD/)).toBeTruthy();
+    click('Close');
+
+    // Operations wall: ledger and radio
+    go('Operations wall');
+    click('Ledger clipboard');
+    const ledger = within(screen.getByLabelText('Operations ledger'));
+    fireEvent.click(ledger.getByRole('button', { name: 'Dr. Farhan Ahmad' }));
+    fireEvent.click(ledger.getByRole('button', { name: 'Seated onboard (Seat 17A)' }));
+    fireEvent.click(ledger.getByRole('button', { name: 'Deliver to aircraft door under EX-04' }));
+    fireEvent.click(ledger.getByRole('button', { name: 'File ledger' }));
+    expect(screen.getByText(/Ledger accepted/)).toBeTruthy();
+    click('Close');
+
+    // Radio: Dr. Farhan Ahmad, cabin door
+    click('Radio');
+    click('Dr. Farhan Ahmad (Seat 17A)');
+    click('Lead Cabin Crew at aircraft door');
+    click('Transmit');
+    expect(screen.getByText('RESOLVED')).toBeTruthy();
   });
 });

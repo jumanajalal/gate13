@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { CASES, caseById } from './engine/cases';
 import { initial, liveScore, reducer, LIMIT } from './engine/game';
-import { loadSettings, saveSettings, type Settings } from './engine/store';
+import { loadSettings, saveSettings, type Settings, loadArchive } from './engine/store';
 import { announce, silence, unlock, type Line } from './engine/pa';
 import { setSfx, sfx } from './engine/sfx';
 import { VIEWS } from './engine/layout';
@@ -43,6 +43,7 @@ function Game() {
   const lastCase = useRef('');
   const gameRef = useRef<HTMLDivElement>(null);
   const c = caseById(s.caseId);
+  const archive = loadArchive();
   setSfx(settings.sound);
 
   const say = useCallback(
@@ -172,11 +173,7 @@ function Game() {
   const pop = () => setLayers((ls) => ls.slice(0, -1));
 
   const openObj = (o: Obj) => {
-    // If the object has a manualAlias and is not locked, defer the OPEN dispatch to the
-    // Inspect sheet's ManualScanField — dispatching here would set s.opened[o.id]=true
-    // before Inspect renders, making showManual evaluate to false and hiding the fallback.
-    const needsManual = !!(o.manualAlias && !(o.kind === 'person') && !(o.lock));
-    if (!needsManual) dispatch({ type: 'OPEN', objId: o.id });
+    dispatch({ type: 'OPEN', objId: o.id });
     push({ type: o.kind === 'person' ? 'talk' : 'obj', id: o.id });
   };
 
@@ -250,7 +247,7 @@ function Game() {
               <span className="score">Score {liveScore(s)}</span>
               <span className="tools">
                 <button onClick={() => setScan('evidence')} aria-label="Scan a card">Scan</button>
-                <button disabled={s.hints >= 2} onClick={hintNow}>Hint (-3)</button>
+                <button disabled={s.hints >= (c.hints?.length || 3)} onClick={hintNow}>Hint (-{settings.hard ? 5 : 3})</button>
                 <button onClick={fullscreen}>Fullscreen</button>
               </span>
             </div>
@@ -265,7 +262,7 @@ function Game() {
             {(s.banner || s.hints > 0) && (
               <div className="stagemsgs">
                 {s.banner && <div className="msg warn" role="status">{s.banner}</div>}
-                {[...Array(s.hints)].map((_, i) => <div className="msg" key={i}>Supervisor: {c.hints[i]}</div>)}
+                {[...Array(s.hints)].map((_, i) => <div className="msg" key={i}>Supervisor (Tier {i + 1}): {c.hints[i]}</div>)}
               </div>
             )}
             {/* Dialogue lives INSIDE .stage so it's contained within the room area */}
@@ -307,6 +304,42 @@ function Game() {
                   <label><input type="checkbox" checked={settings.sound} onChange={() => toggle('sound')} /> Sound</label>
                   <label><input type="checkbox" checked={settings.hotspots} onChange={() => toggle('hotspots')} /> Show hotspot hints</label>
                   <label><input type="checkbox" checked={settings.hard} onChange={() => toggle('hard')} /> Hard mode (+10 pts)</label>
+                </div>
+                <div className="case-archive" aria-label="Incident Archive">
+                  <div className="archive-title">📁 Incident Dossiers &amp; Case Archive</div>
+                  <div className="archive-grid">
+                    {CASES.map((x) => {
+                      const rec = archive[x.id];
+                      const cleared = !!rec?.cleared;
+                      return (
+                        <div key={x.id} className={'archive-card ' + (cleared ? 'cleared' : 'open')}>
+                          <div className="archive-card-head">
+                            <div>
+                              <h3 className="archive-card-name">{x.title}</h3>
+                              <div className="archive-card-flight">{x.flight} · {x.passenger}</div>
+                            </div>
+                            <span className={'archive-badge ' + (cleared ? 'cleared' : 'open')}>
+                              {cleared ? 'CLEARED' : 'AVAILABLE'}
+                            </span>
+                          </div>
+                          <p className="archive-tagline">{x.tagline}</p>
+                          {cleared && (
+                            <div className="archive-stats">
+                              <span>{'★'.repeat(rec.bestStars)}{'☆'.repeat(5 - rec.bestStars)}</span>
+                              <span>{rec.ratingTitle}</span>
+                              <span>{rec.bestScore} pts</span>
+                            </div>
+                          )}
+                          <button
+                            className={'archive-btn' + (cleared ? '' : ' pri')}
+                            onClick={() => start(x.id)}
+                          >
+                            {cleared ? 'Replay Scenario' : 'Investigate Case'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 <details className="home-facilitator">
                   <summary>Facilitator controls</summary>

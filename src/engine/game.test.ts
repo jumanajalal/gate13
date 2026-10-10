@@ -15,6 +15,7 @@ import {
 } from './game';
 import type { CaseDef } from './types';
 import { CANVAS, KIND_SIZE } from './layout';
+import { clearArchive, loadArchive, recordCaseAttempt } from './store';
 
 const begin = (caseId: string, hard = false): State =>
   reducer(reducer(initial, { type: 'START', caseId, hard }), { type: 'BEGIN' });
@@ -182,13 +183,14 @@ describe('scoring, penalties and the clock', () => {
     let s = fileCorrectLedger(investigate(begin('nila')));
     s = reducer(s, { type: 'HINT' });
     s = reducer(s, { type: 'HINT' });
-    s = reducer(s, { type: 'HINT' }); // third ignored
-    expect(s.hints).toBe(2);
+    s = reducer(s, { type: 'HINT' });
+    s = reducer(s, { type: 'HINT' }); // fourth ignored
+    expect(s.hints).toBe(3);
     s = transmit(s, 'hold', 'door');
     expect(s.phase).toBe('play');
     expect(s.wrong).toBe(1);
     expect(s.msg).toMatch(/No confirmation/);
-    expect(liveScore(s)).toBe(30 - 6 - 5);
+    expect(liveScore(s)).toBe(30 - 9 - 5);
   });
 
   it('clearing the flight shows the consequence message', () => {
@@ -332,4 +334,92 @@ describe('room layout', () => {
         }
     });
   }
+});
+
+describe('new scenario playthroughs & mechanics', () => {
+  it('suitcase scenario: routing error deduction and transfer call', () => {
+    const c = caseById('suitcase');
+    let s = investigate(begin('suitcase'));
+    expect(s.opened.tag).toBe(true);
+    expect(s.unlocked.chuteterm).toBe(true);
+    expect(detectConflicts(s.events, c)).toHaveLength(1);
+
+    s = reducer(s, { type: 'SET_ROW', rowId: 'dest', value: 'London via Doha (DOH/LHR)' });
+    s = reducer(s, { type: 'SET_ROW', rowId: 'hold', value: 'Still on Gate 13 cart' });
+    s = reducer(s, { type: 'SET_ROW', rowId: 'cause', value: 'Optical scanner misread DOH as DXB' });
+    s = reducer(s, { type: 'FILE_LEDGER' });
+    expect(radioUnlocked(s, c)).toBe(true);
+
+    s = transmit(s, 'hold_bag', 'gate4');
+    expect(s.outcome).toBe('win');
+    expect(s.result?.win).toBe(true);
+    expect(s.result?.rating.stars).toBe(5);
+    expect(s.result?.rating.title).toBe('Master Investigator');
+  });
+
+  it('phone scenario: owner identification and direct cabin crew delivery', () => {
+    const c = caseById('phone');
+    let s = investigate(begin('phone'));
+    expect(s.opened.phone).toBe(true);
+    expect(s.unlocked.manifestterm).toBe(true);
+    expect(detectConflicts(s.events, c)).toHaveLength(1);
+
+    s = reducer(s, { type: 'SET_ROW', rowId: 'owner', value: 'Dr. Farhan Ahmad' });
+    s = reducer(s, { type: 'SET_ROW', rowId: 'location', value: 'Seated onboard (Seat 17A)' });
+    s = reducer(s, { type: 'SET_ROW', rowId: 'directive', value: 'Deliver to aircraft door under EX-04' });
+    s = reducer(s, { type: 'FILE_LEDGER' });
+    expect(radioUnlocked(s, c)).toBe(true);
+
+    s = transmit(s, 'farhan', 'cabindoor');
+    expect(s.outcome).toBe('win');
+    expect(s.result?.win).toBe(true);
+    expect(s.result?.rating.stars).toBe(5);
+  });
+});
+
+describe('investigation rating system', () => {
+  it('awards 5 stars to a flawless run with zero hints and zero errors', () => {
+    let s = fileCorrectLedger(investigate(begin('suitcase')));
+    s = transmit(s, 'hold_bag', 'gate4');
+    expect(s.result?.rating.stars).toBe(5);
+    expect(s.result?.rating.title).toBe('Master Investigator');
+  });
+
+  it('awards 4 stars when hints are used but no wrong transmissions occur', () => {
+    let s = investigate(begin('suitcase'));
+    s = reducer(s, { type: 'HINT' });
+    s = fileCorrectLedger(s);
+    s = transmit(s, 'hold_bag', 'gate4');
+    expect(s.result?.rating.stars).toBe(4);
+    expect(s.result?.rating.title).toBe('Senior Detective');
+  });
+
+  it('awards 3 stars when wrong transmissions occur', () => {
+    let s = fileCorrectLedger(investigate(begin('suitcase')));
+    s = transmit(s, 'hold_bag', 'unclaimed'); // wrong second pick
+    expect(s.wrong).toBe(1);
+    s = transmit(s, 'hold_bag', 'gate4');
+    expect(s.result?.rating.stars).toBe(3);
+    expect(s.result?.rating.title).toBe('Lead Agent');
+  });
+});
+
+describe('case archive and persistence', () => {
+  it('persists case completion, best score, and rating without state leak', () => {
+    clearArchive();
+    expect(Object.keys(loadArchive())).toHaveLength(0);
+
+    const a1 = recordCaseAttempt('suitcase', true, 62, 5, 'Master Investigator', 45);
+    expect(a1.suitcase.cleared).toBe(true);
+    expect(a1.suitcase.bestScore).toBe(62);
+    expect(a1.suitcase.bestStars).toBe(5);
+
+    // Replay with lower score does not degrade best stats
+    const a2 = recordCaseAttempt('suitcase', true, 40, 4, 'Senior Detective', 80);
+    expect(a2.suitcase.bestScore).toBe(62);
+    expect(a2.suitcase.bestStars).toBe(5);
+    expect(a2.suitcase.attempts).toBe(2);
+
+    clearArchive();
+  });
 });

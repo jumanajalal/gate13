@@ -11,7 +11,7 @@ export interface EvEvent {
 
 export type ViewId = 'gate' | 'win' | 'seat' | 'bag' | 'ops';
 
-export type Kind = 'pass' | 'paper' | 'terminal' | 'receipt' | 'tag' | 'person' | 'map' | 'clock';
+export type Kind = 'pass' | 'paper' | 'terminal' | 'receipt' | 'tag' | 'person' | 'map' | 'clock' | 'phone';
 
 /** A code the player must find elsewhere in the room (escape-room gate). */
 export interface Lock {
@@ -49,6 +49,7 @@ export interface Obj {
   events?: EvEvent[];
   talk?: Talk;
   manualAlias?: string;
+  optional?: boolean;
 }
 
 interface RowBase {
@@ -119,7 +120,7 @@ export interface CaseDef {
   ledger: Row[];
   map?: MapDef;
   decision: Decision;
-  hints: [string, string];
+  hints: string[];
   conflicts: { a: string; b: string; note: string }[];
   /** Hard mode only: the passenger moves; the correct location for group 1 changes. */
   moves?: { atElapsed: number; loc: string; text: string }[];

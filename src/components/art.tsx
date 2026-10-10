@@ -11,6 +11,8 @@ export const LOOKS: Record<string, Look> = {
   agent: { skin: '#c58c6b', hair: '#1b1210', hairStyle: 'bun', cloth: '#1c3a5e', accent: '#ffb938', mood: 'calm' },
   relative: { skin: '#b9795a', hair: '#17110e', hairStyle: 'short', cloth: '#7a3b3b', accent: '#d9c9a3', mood: 'worried' },
   ravi: { skin: '#a8704f', hair: '#c9ccd0', hairStyle: 'grey', cloth: '#4a5a3c', accent: '#e8e0d0', glasses: true, mood: 'worried' },
+  handler: { skin: '#a67252', hair: '#141414', hairStyle: 'short', cloth: '#d96c14', accent: '#ffe454', mood: 'calm' },
+  attendant: { skin: '#c89578', hair: '#2a1a12', hairStyle: 'bun', cloth: '#5c1d2e', accent: '#e8c56e', mood: 'calm' },
 };
 const lookFor = (o: Obj): Look => LOOKS[o.id] ?? LOOKS.relative;
 
@@ -179,6 +181,19 @@ export function PropArt({ o }: { o: Obj }) {
           {[...Array(12)].map((_, i) => <rect key={i} x="53" y="9" width="4" height={i % 3 === 0 ? 12 : 7} fill="#14202e" transform={`rotate(${i * 30} 55 55)`} />)}
           <path d="M55 55 L55 24 M55 55 L78 66" stroke="#14202e" strokeWidth="4" strokeLinecap="round" />
           <circle cx="55" cy="55" r="5" fill="#c9302f" />
+        </g>
+      );
+    case 'phone':
+      return (
+        <g transform="rotate(-6 35 65)">
+          <rect x="0" y="0" width="70" height="130" rx="14" fill="#0d141e" stroke="#486078" strokeWidth="2.5" />
+          <rect x="6" y="10" width="58" height="110" rx="6" fill="#050a10" />
+          <rect x="24" y="5" width="22" height="4" rx="2" fill="#202c38" />
+          <circle cx="35" cy="18" r="2.5" fill="#588ab8" />
+          {[0, 1, 2].map((i) => (
+            <rect key={i} x="12" y={32 + i * 26} width="46" height="20" rx="4" fill="#142232" stroke="#25384e" strokeWidth="1" />
+          ))}
+          <rect x="25" y="114" width="20" height="3" rx="1.5" fill="#7898b8" opacity=".7" />
         </g>
       );
     default:

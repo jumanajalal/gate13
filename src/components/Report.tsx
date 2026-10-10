@@ -1,12 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CaseDef } from '../engine/types';
-import type { Action, State } from '../engine/game';
-import { addEntry, loadBoard } from '../engine/store';
+import { LIMIT, type Action, type State } from '../engine/game';
+import { addEntry, loadBoard, recordCaseAttempt } from '../engine/store';
 
 /** Debrief as a stamped incident report: what the records proved, row by row. */
 export function Report({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a: Action) => void }) {
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState(() => `Team ${loadBoard().length + 1}`);
+
+  useEffect(() => {
+    if (s.result) {
+      const elapsed = LIMIT - Math.max(0, s.left);
+      recordCaseAttempt(s.caseId, s.result.win, s.result.total, s.result.rating.stars, s.result.rating.title, elapsed);
+    }
+  }, [s.result, s.caseId, s.left]);
 
   // Cleared outcome — flight departed without resolution
   if (s.outcome === 'cleared') {
@@ -18,6 +25,7 @@ export function Report({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a:
           Flight {c.flight} departed. Passenger status remains unconfirmed. The incident is still open.
         </p>
         <button onClick={() => dispatch({ type: 'REOPEN' })}>Reopen Incident</button>
+        <button onClick={() => dispatch({ type: 'START', caseId: s.caseId, hard: s.hard })}>Fast Replay</button>
         <button onClick={() => dispatch({ type: 'HOME' })}>Back to start</button>
       </section>
     );
@@ -25,11 +33,16 @@ export function Report({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a:
 
   if (!s.result) return null;
   const r = s.result;
+  const starIcons = '★'.repeat(r.rating.stars) + '☆'.repeat(5 - r.rating.stars);
 
   return (
     <section className="report" aria-label="Incident report">
       <div className={'bigstamp ' + (r.win ? 'win' : 'lose')}>{r.win ? 'RESOLVED' : 'UNRESOLVED'}</div>
       <h1>Incident report: {c.title}</h1>
+      <div className="rating-badge" aria-label={`Investigation rating: ${r.rating.stars} stars`}>
+        <span className="rating-stars">{starIcons}</span>
+        <span className="rating-title">{r.rating.title}</span>
+      </div>
       <p>{r.win ? c.winText : c.loseText}</p>
       {r.win && (
         <div className="term" style={{ marginTop: 8 }}>
@@ -65,7 +78,10 @@ export function Report({ s, c, dispatch }: { s: State; c: CaseDef; dispatch: (a:
           <button className="pri" onClick={() => { addEntry({ name: name.trim() || 'Team', points: r.total, caseId: s.caseId, hard: s.hard, at: Date.now() }); setSaved(true); }}>Save to leaderboard</button>
         </div>
       ) : <p>Saved to the leaderboard.</p>}
-      <button onClick={() => dispatch({ type: 'HOME' })}>Back to start</button>
+      <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+        <button onClick={() => dispatch({ type: 'START', caseId: s.caseId, hard: s.hard })}>Replay Scenario</button>
+        <button onClick={() => dispatch({ type: 'HOME' })}>Back to start</button>
+      </div>
     </section>
   );
 }

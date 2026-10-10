@@ -8,6 +8,11 @@ export const EVIDENCE_POINTS = 10; // per ledger row accepted on the first filin
 export const DECISION_POINTS = 20;
 export const HARD_BONUS = 10;
 
+export interface Rating {
+  stars: number;
+  title: string;
+}
+
 export interface Result {
   win: boolean;
   evidence: number;
@@ -17,6 +22,7 @@ export interface Result {
   wrong: number;
   hardBonus: number;
   total: number;
+  rating: Rating;
 }
 
 export interface State {
@@ -116,17 +122,39 @@ export function correctNow(s: State, c: CaseDef = caseById(s.caseId)): [string, 
 }
 
 export function liveScore(s: State): number {
-  return Math.max(0, s.evidence - s.hints * HINT_PENALTY - s.wrong * WRONG_PENALTY);
+  const hintPenalty = s.hard ? 5 : HINT_PENALTY;
+  return Math.max(0, s.evidence - s.hints * hintPenalty - s.wrong * WRONG_PENALTY);
+}
+
+export function computeRating(r: Omit<Result, 'rating'>, s: State): Rating {
+  if (!r.win) {
+    if (s.evidence > 0) return { stars: 2, title: 'Field Agent' };
+    return { stars: 1, title: 'Unresolved' };
+  }
+  const allLedgerFirstTry = Object.keys(s.ledgerFailed).length === 0;
+  if (s.hints === 0 && s.wrong === 0 && allLedgerFirstTry) {
+    return { stars: 5, title: 'Master Investigator' };
+  }
+  if (s.hints <= 2 && s.wrong === 0) {
+    return { stars: 4, title: 'Senior Detective' };
+  }
+  if (s.wrong <= 1) {
+    return { stars: 3, title: 'Lead Agent' };
+  }
+  return { stars: 2, title: 'Field Agent' };
 }
 
 export function computeResult(s: State, win: boolean): Result {
   const decision = win ? DECISION_POINTS : 0;
   const speed = win ? Math.floor(Math.max(0, s.left) / 15) : 0;
   const hardBonus = win && s.hard ? HARD_BONUS : 0;
-  const hints = s.hints * HINT_PENALTY;
+  const hintPenalty = s.hard ? 5 : HINT_PENALTY;
+  const hints = s.hints * hintPenalty;
   const wrong = s.wrong * WRONG_PENALTY;
   const total = Math.max(0, s.evidence + decision + speed + hardBonus - hints - wrong);
-  return { win, evidence: s.evidence, decision, speed, hints, wrong, hardBonus, total };
+  const partial = { win, evidence: s.evidence, decision, speed, hints, wrong, hardBonus, total };
+  const rating = computeRating(partial, s);
+  return { ...partial, rating };
 }
 
 function finish(s: State, win: boolean, outcome: State['outcome'] = win ? 'win' : 'timeout'): State {
@@ -253,7 +281,7 @@ export function reducer(s: State, a: Action): State {
       };
     }
     case 'HINT':
-      return s.phase === 'play' && s.hints < 2 ? { ...s, hints: s.hints + 1 } : s;
+      return s.phase === 'play' && s.hints < (c.hints?.length || 3) ? { ...s, hints: s.hints + 1 } : s;
     case 'PICK': {
       const picks: [string | null, string | null] = [...s.picks];
       picks[a.group] = a.value;

@@ -12,10 +12,11 @@ export const KIND_SIZE: Record<Kind, [number, number]> = {
   map: [230, 160],
   clock: [110, 110],
   person: [150, 380],
+  phone: [70, 130],
 };
 
 /** Things you pick up and carry. Everything else is a fixture of the room. */
-export const CARRYABLE: Kind[] = ['pass', 'paper', 'receipt', 'tag', 'clock'];
+export const CARRYABLE: Kind[] = ['pass', 'paper', 'receipt', 'tag', 'clock', 'phone'];
 
 export const VIEWS: { id: ViewId; label: string }[] = [
   { id: 'gate', label: 'Gate counter' },

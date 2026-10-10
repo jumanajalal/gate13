@@ -345,3 +345,36 @@ button.pulsing { animation: radioglow 1.2s ease-in-out infinite; }
 @keyframes pinmount { from { transform: rotate(var(--rot)) translateY(-10px) scale(0.88); opacity: 0; } to { transform: rotate(var(--rot)) translateY(0) scale(1); opacity: 1; } }
 .card.pin { animation: pinmount 0.3s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .card.pin { animation: none; } }
+
+/* ---- phone inspect component ---- */
+.phone-device { max-width: 320px; margin: 0 auto; background: #0a111a; border: 3px solid #334a62; border-radius: 28px; padding: 18px 14px 22px; box-shadow: 0 16px 40px rgba(0,0,0,.8); position: relative; }
+.phone-notch { width: 90px; height: 14px; background: #162434; margin: 0 auto 12px; border-radius: 0 0 10px 10px; }
+.phone-screen { background: #060c14; border: 1px solid #1a2a3a; border-radius: 16px; padding: 14px 12px; min-height: 280px; }
+.phone-screen h3 { font-size: 13px; letter-spacing: 0.08em; color: var(--amb); margin: 0 0 12px; text-transform: uppercase; font-family: ui-monospace, monospace; text-align: center; border-bottom: 1px solid #1c2c3c; padding-bottom: 8px; }
+.phone-notif { background: #101a26; border-left: 3px solid #ffb938; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 8px; }
+.phone-notif p { margin: 0; font-size: 13px; color: #d8e4f0; line-height: 1.35; }
+.notif-dot { width: 6px; height: 6px; border-radius: 50%; background: #ffb938; margin-top: 5px; flex-shrink: 0; }
+.phonenote { font-size: 12px; color: #8aa0b4; font-style: italic; margin-top: 10px; }
+
+/* ---- rating and archive components ---- */
+.rating-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,.4); border: 1px solid var(--amb); padding: 4px 12px; border-radius: 20px; margin: 10px 0; }
+.rating-stars { color: var(--amb); font-size: 18px; letter-spacing: 2px; }
+.rating-title { color: #f0f4f8; font-weight: 700; font-size: 13px; text-transform: uppercase; font-family: ui-monospace, monospace; }
+
+.case-archive { margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.08); }
+.archive-title { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; color: var(--amb); text-transform: uppercase; margin-bottom: 12px; font-family: ui-monospace, monospace; }
+.archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.archive-card { background: rgba(12,20,30,.85); border: 1px solid #233446; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; transition: border-color .2s; }
+.archive-card:hover { border-color: #3e5876; }
+.archive-card.cleared { border-left: 4px solid var(--ok); }
+.archive-card.open { border-left: 4px solid var(--amb); }
+.archive-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+.archive-card-name { font-size: 14px; font-weight: 700; color: #f0f4f8; margin: 0; }
+.archive-card-flight { font-size: 11px; color: #8fa2b4; font-family: ui-monospace, monospace; margin-top: 2px; }
+.archive-badge { font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-family: ui-monospace, monospace; white-space: nowrap; }
+.archive-badge.cleared { background: rgba(65,201,138,.15); color: #41c98a; border: 1px solid rgba(65,201,138,.4); }
+.archive-badge.open { background: rgba(255,185,56,.15); color: #ffb938; border: 1px solid rgba(255,185,56,.4); }
+.archive-tagline { font-size: 12px; color: #a4b6c6; margin: 0; line-height: 1.35; }
+.archive-stats { font-size: 11px; color: #ffb938; font-family: ui-monospace, monospace; display: flex; gap: 8px; align-items: center; }
+.archive-btn { width: 100%; text-align: center; margin: 0; padding: 6px 12px; font-size: 12px; }
+

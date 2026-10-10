@@ -38,17 +38,22 @@ The camera QR scanner needs **https or localhost**. Every card can also be opene
 | The Group 3 Redirect | A scan is not the same as being onboard (and a bag is not loaded until a load event says so) |
 | The Sent-Back Group | A loaded bag still is not a passenger |
 | The Wrong Clock | Same moment, different clocks: a time-zone misread raises a false no-show flag |
+| The Suitcase That Travelled Alone | A bag on the gate chute is not on this flight: an optical scanner error diverted an interline bag |
+| The Phone Left Behind | Independent receipt and notification trails identify the passenger already seated before door closure |
 
 Add a case by copying an object in `src/engine/cases.ts`. `npm test` checks that ids, answers, decisions, conflicts and **lock codes** are consistent, including that every lock code can actually be found on another prop.
 
 ## Features
 
-- 3 authored cases on one engine; "Draw an envelope" picks one at random and avoids repeating the last
+- 5 authored cases on one engine; persistent Case Archive dossier distinguishes available cases from cleared scenarios
+- Case archive and fast replay: replay any scenario without state contamination, tracking best score and star ratings
+- 5-Star Investigation Rating: evaluates decision accuracy, first-attempt ledger filing, speed, and hint conservation
+- Progressive 3-Tier hints: Attention -> Relationship -> Direct Deduction
 - A five-wall room with drawn props, character portraits, inventory, locks, evidence board with red strings, ledger, radio
 - Hotspot dots (switch off in settings) and a Hint button that makes every uninspected hotspot pulse for 5 seconds
-- Hard mode: the passenger moves at an authored time (visible banner, PA line and map pin), +10 points
-- Scoring: +10 per ledger row filed correctly the first time, +20 radio call, small speed bonus, -3 per hint, -5 per wrong radio call
-- Local leaderboard (works with no server)
+- Hard mode: stricter hint penalties, time pressure, and dynamic passenger movements, +10 points
+- Scoring: +10 per ledger row filed correctly the first time, +20 radio call, speed bonus, -3 per hint (-5 hard), -5 per wrong call
+- Local leaderboard & local case archive (works completely offline with no server)
 - Departure board with flip animation and a 3:00 countdown
 - Printable evidence kit with QR codes at `/#/props`; scan an envelope QR to open a case, scan a card to open its object
 - PA announcements in English, Malayalam and Arabic with on-screen captions, a synthesised chime and room sound effects (all offline)

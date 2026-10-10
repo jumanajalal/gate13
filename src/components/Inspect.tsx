@@ -107,6 +107,22 @@ function Artifact({ o, c, s }: { o: Obj; c: CaseDef; s: State }) {
           {o.note && <p>{o.note}</p>}
         </div>
       );
+    case 'phone':
+      return (
+        <div className="phone-device" style={{ position: 'relative' }}>
+          <div className="phone-notch" />
+          <div className="phone-screen">
+            <h3>{o.heading ?? 'SMARTPHONE'}</h3>
+            {(o.lines ?? []).map((l, i) => (
+              <div key={i} className="phone-notif">
+                <span className="notif-dot" />
+                <p>{l}</p>
+              </div>
+            ))}
+            {o.note && <p className="phonenote">{o.note}</p>}
+          </div>
+        </div>
+      );
     default:
       return null;
   }

@@ -194,6 +194,7 @@ export const CASES: CaseDef[] = [
     hints: [
       'Separate three things: scanned, moving, onboard. Which of them does each record actually prove?',
       "Match her brother's landmark to a labeled place on the map.",
+      'Nila stopped with Rohan at the coffee counter at Holding Point H2. Her bag was never loaded. Hold the flight and check H2.',
     ],
     conflicts: [{ a: 'note', b: 'stmt', note: 'These two accounts cannot both describe where Nila is.' }],
     moves: [{ atElapsed: 100, loc: 'lounge', text: 'Staff update: a woman with a child was seen leaving H2 toward the main lounge.' }],
@@ -355,6 +356,7 @@ export const CASES: CaseDef[] = [
     hints: [
       'The bag being loaded tells you where the bag is. What does it say about Anjali?',
       "Match her husband's account to a labeled place on the map.",
+      'Group 2 was sent back when boarding paused; Anjali is charging her phone in the main lounge. Hold the flight and check the lounge.',
     ],
     conflicts: [{ a: 'note', b: 'stmt', note: 'These two accounts cannot both describe where Anjali is.' }],
     pa: [
@@ -535,6 +537,7 @@ export const CASES: CaseDef[] = [
     hints: [
       'Compare the time zone in the scan log with the time zone on the gate notice.',
       'Convert before you compare: SGT is 2 h 30 min ahead of IST.',
+      '01:25 SGT minus 2:30 equals 22:55 IST, which is 15 minutes before gate closure at 23:10. Correct the record and keep his bag on the flight.',
     ],
     conflicts: [{ a: 'flag', b: 'conv', note: 'The flag and the converted scan time cannot both be right.' }],
     pa: [
@@ -561,6 +564,457 @@ export const CASES: CaseDef[] = [
       en: 'Flight M A six one five has departed. One passenger record remains unresolved.',
       ml: 'എം എ 615 വിമാനം പുറപ്പെട്ടു. ഒരു യാത്രക്കാരന്റെ രേഖ പരിഹരിക്കപ്പെട്ടിട്ടില്ല.',
       ar: 'غادرت الرحلة إم إيه ٦١٥. لا يزال سجل أحد الركاب دون حل.',
+    },
+  },
+  /* ------------------------------------------------------------------ */
+  {
+    id: 'suitcase',
+    title: 'The Suitcase That Travelled Alone',
+    tagline: 'A bag at the gate does not mean it belongs to this flight.',
+    flight: 'MA 613',
+    passenger: 'Tariq Aziz',
+    opening: [
+      '23:14 · Gate 13',
+      'Malabar Air MA 613 to Dubai is preparing for departure.',
+      'A silver transfer suitcase sits on the Gate 13 loading chute. Ramp crew is about to load it into the hold.',
+      'Ramp supervisor reports a routing tag mismatch. Determine where this suitcase belongs before it flies to the wrong country.',
+    ],
+    boardHold: 'TRANSFER MISMATCH: SUSPECT SUITCASE AT CHUTE 13',
+    boardWin: 'SUITCASE REROUTED: DISPATCHED TO GATE 4 FOR QR 517',
+    boardLose: 'FLIGHT DEPARTED: SUITCASE LOADED ONTO WRONG FLIGHT',
+    winText:
+      "Suitcase QA-883104 belongs to passenger Tariq Aziz, flying to London via Doha on Qatar Airways QR 517 from Gate 4. Diverter B's optical scanner smudged DOH as DXB, dumping it down Chute 13. Operations held the bag from MA 613 and rushed it to Gate 4 before their cart departed.",
+    loseText:
+      "The suitcase was destined for London via Doha on QR 517, but was misdirected to Chute 13 by an optical scanner fault. It should have been held from MA 613 and transferred to Gate 4.",
+    objects: [
+      {
+        id: 'tag',
+        kind: 'tag',
+        at: { v: 'bag', x: 520, y: 290 },
+        title: 'Baggage routing tag',
+        heading: 'INTERLINE BAGGAGE TAG',
+        manualAlias: 'TAG-883104',
+        fields: [
+          ['Passenger', 'AZIZ/TARIQ'],
+          ['Tag No.', 'QA-883104'],
+          ['Flight 1', 'QR 517 (CCJ to DOH)'],
+          ['Connecting', 'QR 003 (DOH to LHR)'],
+          ['Final Dest', 'LHR (London Heathrow)'],
+        ],
+        events: [
+          { key: 'tag_dest', t: null, when: 'QR 517', label: 'Tag QA-883104 destination is London via Doha on QR 517', status: 'confirmed' },
+        ],
+      },
+      {
+        id: 'chuteterm',
+        kind: 'terminal',
+        at: { v: 'bag', x: 1150, y: 370 },
+        title: 'Sortation terminal',
+        lock: {
+          prompt: 'ENTER 6-DIGIT BAG TAG NUMBER',
+          placeholder: '6 digits',
+          answers: ['883104', 'QA883104'],
+          hint: 'The tag number is printed on the suitcase bag tag.',
+        },
+        lines: [
+          'AUTOMATED SORTATION LOG · BAGGAGE SYSTEM',
+          'BAG QA-883104 READ AT MAIN DIVERTER B',
+          'ROUTED TO: CHUTE 13 (GATE 13 · MA 613 TO DUBAI)',
+          'SYSTEM ALERT: OPTICAL DIVERTER MISREAD DETECTED',
+          'DOH TAG READ AS DXB DUE TO BARCODE SCUFF',
+          'HOLD STATUS: Bag on ramp cart; NOT in MA 613 hold',
+        ],
+        events: [
+          { key: 'chute_misread', t: null, when: 'DIVERTER B', label: 'Diverter B optical scanner misread DOH as DXB', status: 'confirmed' },
+          { key: 'hold_not_loaded', t: null, when: 'RAMP CART', label: 'Bag on Gate 13 cart; not loaded into MA 613 hold', status: 'confirmed' },
+        ],
+      },
+      {
+        id: 'handler',
+        kind: 'person',
+        at: { v: 'gate', x: 1000, y: 300 },
+        title: 'Ramp agent',
+        talk: {
+          who: 'Hamza',
+          role: 'Ramp Agent',
+          intro: 'We have a stray silver case on the Chute 13 cart. If it is on my cart, my loaders are about to pack it into MA 613.',
+          qa: [
+            {
+              q: 'Why was this suitcase sent to Gate 13?',
+              a: 'The automated chute dropped it down here two minutes ago. Standard procedure is to load everything on Chute 13 unless you tell me otherwise.',
+              events: [
+                { key: 'crew_claim', t: null, when: 'RAMP', label: 'Ramp crew preparing to load suitcase into MA 613 forward hold', status: 'unconfirmed' },
+              ],
+            },
+            {
+              q: 'Where is flight QR 517 departing from?',
+              a: 'Gate 4 on the North Concourse! Their loader cart leaves the apron in ten minutes.',
+              events: [
+                { key: 'gate4_cart', t: null, when: 'GATE 4', label: 'QR 517 loading at Gate 4; transfer cart departs in 10 minutes', status: 'confirmed' },
+              ],
+            },
+            {
+              q: 'Is passenger Tariq Aziz on MA 613?',
+              a: 'No, Tariq Aziz is not on our passenger manifest. He checked in at Counter 4 with Qatar Airways.',
+            },
+          ],
+        },
+      },
+      {
+        id: 'schedule',
+        kind: 'paper',
+        at: { v: 'win', x: 280, y: 220 },
+        title: 'Flight gate schedule',
+        heading: 'OUTBOUND DEPARTURES & GATES',
+        lines: [
+          'MA 613 · DXB (Dubai) · Gate 13 · Departs 23:30',
+          'QR 517 · DOH (Doha) · Gate 04 · Departs 23:45',
+          'Baggage transfers for Doha/London must be routed via Gate 4 Transfer Cart.',
+        ],
+        events: [
+          { key: 'sched_gate4', t: null, when: '23:45', label: 'Schedule confirms QR 517 departs Gate 4 at 23:45', status: 'confirmed' },
+        ],
+      },
+      {
+        id: 'maint',
+        kind: 'receipt',
+        at: { v: 'seat', x: 800, y: 592 },
+        title: 'Sorter maintenance notice',
+        heading: 'SORTER MAINTENANCE LOG',
+        lines: [
+          'T-40 · Diverter B lens smudged',
+          'DOH barcode tags intermittently misread as DXB',
+          'Chute 13 receives DXB spillover',
+        ],
+        note: 'Handwritten: "Check all London transfers on belt 2!"',
+        events: [
+          { key: 'maint_log', t: null, when: 'T-40', label: 'Maintenance log: Diverter B lens smudged, routing DOH to Chute 13', status: 'confirmed' },
+        ],
+        optional: true,
+      },
+      {
+        id: 'pass',
+        kind: 'pass',
+        at: { v: 'gate', x: 840, y: 470 },
+        title: 'Baggage transfer slip',
+        fields: [
+          ['Passenger', 'TARIQ AZIZ'],
+          ['Route', 'CCJ to DOH to LHR'],
+          ['Connecting Carrier', 'QATAR AIRWAYS QR 517'],
+          ['Assigned Departure Gate', 'GATE 4'],
+          ['Tag Reference', 'QA-883104'],
+        ],
+        events: [
+          { key: 'transfer_manifest', t: null, when: 'GATE 4', label: 'Transfer slip confirms passenger on QR 517 at Gate 4', status: 'confirmed' },
+        ],
+      },
+    ],
+    ledger: [
+      {
+        id: 'dest',
+        label: 'Suitcase final destination',
+        kind: 'choice',
+        options: ['Dubai (DXB)', 'London via Doha (DOH/LHR)'],
+        answer: 'London via Doha (DOH/LHR)',
+        why: 'Tag QA-883104 and the transfer slip confirm routing CCJ-DOH-LHR on Qatar Airways QR 517.',
+      },
+      {
+        id: 'hold',
+        label: 'Present loading status',
+        kind: 'choice',
+        options: ['Loaded in MA 613 hold', 'Still on Gate 13 cart'],
+        answer: 'Still on Gate 13 cart',
+        why: 'The sortation terminal and ramp agent confirm the bag is on the ramp cart and has not entered the cargo hold.',
+      },
+      {
+        id: 'cause',
+        label: 'Cause of Gate 13 delivery',
+        kind: 'choice',
+        options: ['Optical scanner misread DOH as DXB', 'Passenger changed flight'],
+        answer: 'Optical scanner misread DOH as DXB',
+        why: 'Maintenance log and sortation terminal confirm Diverter B scanner smudged DOH tags as DXB.',
+      },
+    ],
+    decision: {
+      groups: [
+        {
+          title: 'Suitcase action',
+          options: [
+            { id: 'hold_bag', label: 'Hold bag from MA 613' },
+            { id: 'load_bag', label: 'Load onto MA 613' },
+          ],
+        },
+        {
+          title: 'Dispatch to',
+          options: [
+            { id: 'gate4', label: 'Dispatch to Gate 4 (QR 517)' },
+            { id: 'unclaimed', label: 'Send to Unclaimed Luggage' },
+          ],
+        },
+      ],
+      correct: ['hold_bag', 'gate4'],
+      messages: {
+        first: { load_bag: 'Bag loaded onto MA 613! It will fly to Dubai while the passenger flies to London.' },
+        fallback: 'Incorrect bag disposition. Recheck the routing slip and gate schedule.',
+      },
+    },
+    hints: [
+      'Inspect the destination codes on the bag tag and the sortation terminal log.',
+      'Diverter B optical scanner misread DOH (Doha) as DXB (Dubai). Compare the bag tag with the flight schedule.',
+      'The suitcase belongs to Tariq Aziz traveling on QR 517 at Gate 4. Do not load it onto MA 613; dispatch it to Gate 4 immediately.',
+    ],
+    conflicts: [
+      { a: 'crew_claim', b: 'tag_dest', note: 'The ramp crew intent to load onto MA 613 contradicts the confirmed destination tag.' },
+    ],
+    pa: [
+      {
+        atLeft: 177,
+        en: 'Malabar Air flight M A six one three to Dubai: baggage reconciliation is in progress at gate thirteen.',
+        ml: 'മലബാർ എയർ വിമാനം എം എ 613, ദുബായിലേക്ക്: ലഗേജ് പരിശോധന ഗേറ്റ് 13-ൽ നടക്കുന്നു.',
+        ar: 'رحلة ملبار إم إيه ٦١٣ إلى دبي: تجري مطابقة الأمتعة عند البوابة ١٣.',
+      },
+      {
+        atLeft: 100,
+        en: 'Ramp transfer cart for flight Q R five one seven departing gate four in ten minutes.',
+        ml: 'വിമാനം ക്യു ആർ 517-നുള്ള റാംപ് ട്രാൻസ്ഫർ വണ്ടി പത്ത് മിനിറ്റിനുള്ളിൽ ഗേറ്റ് 4-ൽ നിന്ന് തിരിക്കും.',
+        ar: 'عربة النقل للرحلة كيو آر ٥١٧ تغادر البوابة ٤ بعد عشر دقائق.',
+      },
+      HOLD_PA,
+    ],
+    winPa: {
+      en: 'Suitcase rerouted to Gate 4. Loading onto flight Q R five one seven confirmed.',
+      ml: 'സ്യൂട്ട്കേസ് ഗേറ്റ് 4-ലേക്ക് തിരിച്ചുവിട്ടു. ക്യു ആർ 517-ൽ കയറ്റിയത് സ്ഥിരീകരിച്ചു.',
+      ar: 'تمت إعادة توجيه الحقيبة إلى البوابة ٤ وتأكيد تحميلها على الرحلة كيو آر ٥١٧.',
+    },
+    losePa: {
+      en: 'Flight M A six one three has departed. Misrouted baggage status unresolved.',
+      ml: 'എം എ 613 വിമാനം പുറപ്പെട്ടു. തെറ്റായ ലഗേജിന്റെ കാര്യം പരിഹരിക്കപ്പെട്ടിട്ടില്ല.',
+      ar: 'غادرت الرحلة إم إيه ٦١٣. لا تزال حالة الأمتعة الخاطئة غير محلولة.',
+    },
+  },
+  /* ------------------------------------------------------------------ */
+  {
+    id: 'phone',
+    title: 'The Phone Left Behind',
+    tagline: 'A ringing screen, three names, and two minutes before departure.',
+    flight: 'MA 613',
+    passenger: 'Dr. Farhan Ahmad',
+    opening: [
+      '23:18 · Gate 13',
+      'Malabar Air MA 613 to Dubai.',
+      'A ringing smartphone was found on a waiting area seat. Boarding is almost complete.',
+      'Identify the owner and deliver the phone before the aircraft door closes. Three passengers share similar initials.',
+    ],
+    boardHold: 'UNATTENDED PROPERTY: SMARTPHONE RECOVERED AT SEATING ROW C',
+    boardWin: 'DELIVERY COMPLETED: PHONE HANDED TO DR. AHMAD ONBOARD',
+    boardLose: 'FLIGHT DEPARTED: PASSENGER STRANDED WITHOUT ESSENTIAL DEVICE',
+    winText:
+      "Calendar alerts, cab payment details, and pharmacy records identified Dr. Farhan Ahmad in Seat 17A as the owner of the smartphone. Terminal Directive EX-04 permits handoff directly to the lead cabin crew at the aircraft door when the seat is verified. Dr. Ahmad received his phone just before the door closed.",
+    loseText:
+      "The phone belonged to Dr. Farhan Ahmad, who was already seated in 17A. Sending it to Lost & Found or misidentifying the owner left him flying to Dubai without his conference materials.",
+    objects: [
+      {
+        id: 'phone',
+        kind: 'phone',
+        at: { v: 'seat', x: 800, y: 592 },
+        title: 'Lost smartphone',
+        heading: 'LOST SMARTPHONE · LOCK SCREEN',
+        manualAlias: 'PHONE-4192',
+        lines: [
+          '23:15 · Battery 14%',
+          'CALENDAR: Gulf Medical Summit opening session tomorrow 09:00 Dubai',
+          'CAB RECEIPT: CCJ Airport drop-off · Paid ₹840 by Visa ****4192',
+          'SMS from Dr. Kabeer: Boarding now Farhan? Safe travels!',
+        ],
+        events: [
+          { key: 'phone_screen', t: null, when: '23:15', label: 'Phone screen indicates passenger Farhan attending Gulf Medical Summit', status: 'confirmed' },
+          { key: 'card_last4', t: null, when: 'VISA 4192', label: 'Recent cab receipt paid by card ending 4192', status: 'confirmed' },
+        ],
+      },
+      {
+        id: 'manifestterm',
+        kind: 'terminal',
+        at: { v: 'gate', x: 520, y: 390 },
+        title: 'Manifest lookup terminal',
+        lock: {
+          prompt: 'ENTER 4-DIGIT CARD NUMBER FROM RECENT RECEIPT',
+          placeholder: '4 digits',
+          answers: ['4192'],
+          hint: 'The 4-digit card number is visible on the phone lock screen ride receipt.',
+        },
+        lines: [
+          'GATE 13 · PASSENGER LOOKUP SYSTEM',
+          'CARD ****4192 MATCH: DR. FARHAN AHMAD',
+          'SEAT: 17A · STATUS: BOARDED AT 23:05 · SEATED ONBOARD',
+          'OTHER PARTIAL INITIAL MATCHES:',
+          'FAHIM ANSARI (SEAT 24D) · STATUS: NO-SHOW AT CHECK-IN',
+          'FAYIS ALI (SEAT 05C) · STATUS: BOOKING CANCELLED',
+        ],
+        events: [
+          { key: 'farhan_seated', t: null, when: 'SEAT 17A', label: 'Dr. Farhan Ahmad in Seat 17A is confirmed boarded and seated', status: 'confirmed' },
+          { key: 'pax_unboarded', t: null, when: 'NOT BOARDED', label: 'Fahim Ansari and Fayis Ali are not onboard MA 613', status: 'unconfirmed' },
+        ],
+      },
+      {
+        id: 'attendant',
+        kind: 'person',
+        at: { v: 'win', x: 280, y: 220 },
+        title: 'Lead cabin crew',
+        talk: {
+          who: 'Leila',
+          role: 'Lead Cabin Crew',
+          intro: 'The jet bridge door is still open for another minute. Can I help with something urgent?',
+          qa: [
+            {
+              q: 'Can we still deliver an item to a seated passenger?',
+              a: 'Yes! If you can confirm the seat number with operations, I will take it to them right now before we close the door.',
+              events: [
+                { key: 'door_open', t: null, when: 'AIRCRAFT DOOR', label: 'Cabin crew available to deliver item to verified seat before door closure', status: 'confirmed' },
+              ],
+            },
+            {
+              q: 'Has anyone in row 17 reported a missing device?',
+              a: 'The passenger in 17A was anxiously checking his jacket pockets just as I walked out.',
+              events: [
+                { key: 'crew_distress', t: null, when: 'ROW 17', label: 'Passenger in 17A observed searching for missing phone', status: 'confirmed' },
+              ],
+            },
+            {
+              q: 'Should this go to Terminal Lost & Found?',
+              a: 'Directive EX-04 says if we have the seat number for a departing flight, deliver it to the door. Lost & Found means he flies without his phone.',
+            },
+          ],
+        },
+      },
+      {
+        id: 'pass',
+        kind: 'pass',
+        at: { v: 'seat', x: 280, y: 315 },
+        title: 'Boarding pass stub',
+        fields: [
+          ['Passenger', 'AHMAD/FARHAN DR'],
+          ['Flight', 'MA 613'],
+          ['Seat', '17A'],
+          ['Gate', '13'],
+        ],
+        events: [
+          { key: 'pass_stub', t: null, when: 'SEAT 17A', label: 'Boarding pass stub confirms Dr. Farhan Ahmad in Seat 17A', status: 'confirmed' },
+        ],
+      },
+      {
+        id: 'lostnotice',
+        kind: 'paper',
+        at: { v: 'bag', x: 150, y: 170 },
+        title: 'Terminal directive EX-04',
+        heading: 'DISPATCH DIRECTIVE EX-04',
+        lines: [
+          'STANDARD RULE: Unidentified lost property goes to Main Concourse Lost & Found.',
+          'EXCEPTION EX-04: When verified passenger identity and onboard seat number are established prior to door closure, dispatch directly to Lead Cabin Crew at aircraft door.',
+        ],
+        events: [
+          { key: 'rule_ex04', t: null, when: 'EX-04', label: 'Directive EX-04 permits direct handoff to cabin crew if seat verified', status: 'confirmed' },
+        ],
+      },
+      {
+        id: 'pharmreceipt',
+        kind: 'receipt',
+        at: { v: 'gate', x: 840, y: 470 },
+        title: 'Pharmacy receipt',
+        heading: 'AIRPORT PHARMACY · GATE 13',
+        lines: [
+          'Time: 22:45',
+          '1 x Travel Lozenges',
+          'Paid: Visa ****4192',
+          'Customer: Dr. F. Ahmad',
+        ],
+        note: 'Badge attached: "Gulf Medical Summit 2026 Delegate".',
+        events: [
+          { key: 'pharm_card', t: null, when: '22:45', label: 'Pharmacy receipt links Card 4192 to Dr. F. Ahmad (Gulf Medical Summit)', status: 'confirmed' },
+        ],
+        optional: true,
+      },
+    ],
+    ledger: [
+      {
+        id: 'owner',
+        label: 'Phone owner',
+        kind: 'choice',
+        options: ['Dr. Farhan Ahmad', 'Fahim Ansari', 'Fayis Ali'],
+        answer: 'Dr. Farhan Ahmad',
+        why: 'Calendar, SMS, cab receipt, and pharmacy receipt match Card 4192 to Dr. Farhan Ahmad.',
+      },
+      {
+        id: 'location',
+        label: 'Owner current status',
+        kind: 'choice',
+        options: ['Seated onboard (Seat 17A)', 'Still in terminal'],
+        answer: 'Seated onboard (Seat 17A)',
+        why: 'Manifest terminal and cabin crew confirm Dr. Farhan Ahmad is seated in 17A.',
+      },
+      {
+        id: 'directive',
+        label: 'Authorised procedure',
+        kind: 'choice',
+        options: ['Deliver to aircraft door under EX-04', 'Deposit at Lost & Found'],
+        answer: 'Deliver to aircraft door under EX-04',
+        why: 'Directive EX-04 permits direct delivery to cabin crew at aircraft door when seat assignment is verified.',
+      },
+    ],
+    decision: {
+      groups: [
+        {
+          title: 'Recipient',
+          options: [
+            { id: 'farhan', label: 'Dr. Farhan Ahmad (Seat 17A)' },
+            { id: 'lostfound', label: 'Terminal Lost & Found' },
+          ],
+        },
+        {
+          title: 'Delivery point',
+          options: [
+            { id: 'cabindoor', label: 'Lead Cabin Crew at aircraft door' },
+            { id: 'bagcounter', label: 'Ground Baggage counter' },
+          ],
+        },
+      ],
+      correct: ['farhan', 'cabindoor'],
+      messages: {
+        first: { lostfound: 'Phone sent to Lost & Found while Dr. Ahmad flew to Dubai without his device. Recheck procedure EX-04.' },
+        fallback: 'Incorrect delivery procedure. Recheck the passenger lookup and directive EX-04.',
+      },
+    },
+    hints: [
+      'Inspect the notifications on the phone and check the payment card digits.',
+      'Use the 4-digit card number from the ride receipt to unlock the passenger lookup terminal, then compare names.',
+      'The phone belongs to Dr. Farhan Ahmad in Seat 17A. Under directive EX-04, deliver it to the lead cabin crew at the aircraft door.',
+    ],
+    conflicts: [
+      { a: 'pax_unboarded', b: 'farhan_seated', note: 'Initial confusion over unboarded passengers Fahim Ansari and Fayis Ali contradicts Dr. Ahmad confirmed in Seat 17A.' },
+    ],
+    pa: [
+      {
+        atLeft: 177,
+        en: 'Malabar Air flight M A six one three to Dubai is in final boarding. Gate thirteen doors closing soon.',
+        ml: 'മലബാർ എയർ വിമാനം എം എ 613, ദുബായ് ബോർഡിംഗ് അവസാനഘട്ടത്തിലാണ്. ഗേറ്റ് 13 ഉടൻ അടയ്ക്കും.',
+        ar: 'رحلة ملبار إم إيه ٦١٣ إلى دبي في مراحل الصعود الأخيرة. تغلق أبواب البوابة ١٣ قريباً.',
+      },
+      {
+        atLeft: 95,
+        en: 'Cabin crew, prepare for door closure on flight M A six one three.',
+        ml: 'ക്യാബിൻ ക്രൂ, എം എ 613 വിമാനത്തിന്റെ വാതിലുകൾ അടയ്ക്കാൻ തയ്യാറാകുക.',
+        ar: 'طاقم الطائرة، يرجى الاستعداد لإغلاق الأبواب للرحلة إم إيه ٦١٣.',
+      },
+      HOLD_PA,
+    ],
+    winPa: {
+      en: 'Phone delivered to passenger in seat seventeen A. Departure cleared.',
+      ml: 'സീറ്റ് പതിനേഴ് എ-യിലെ യാത്രക്കാരന് ഫോൺ എത്തിച്ചുനൽകി. വിമാനം പുറപ്പെടാൻ അനുമതി.',
+      ar: 'تم تسليم الهاتف للراكب في المقعد ١٧ أ. تمت الموافقة على المغادرة.',
+    },
+    losePa: {
+      en: 'Flight M A six one three has departed. Unclaimed property remained unreturned.',
+      ml: 'എം എ 613 വിമാനം പുറപ്പെട്ടു. അവകാശപ്പെടാത്ത ഉപകരണം തിരികെ നൽകാനായില്ല.',
+      ar: 'غادرت الرحلة إم إيه ٦١٣. بقيت الممتلكات المفقودة دون إعادة.',
     },
   },
 ];

@@ -64,3 +64,79 @@ export function saveSettings(s: Settings) {
     /* ignore */
   }
 }
+
+export interface CaseRecord {
+  caseId: string;
+  cleared: boolean;
+  bestScore: number;
+  bestStars: number;
+  ratingTitle: string;
+  bestTimeSeconds: number;
+  attempts: number;
+  lastPlayed: number;
+}
+
+export type CaseArchive = Record<string, CaseRecord>;
+
+const ARCHIVE_KEY = 'gate13.archive.v1';
+let memArchive: CaseArchive = {};
+
+export function loadArchive(): CaseArchive {
+  try {
+    const raw = localStorage.getItem(ARCHIVE_KEY);
+    if (raw) memArchive = JSON.parse(raw);
+  } catch {
+    /* storage unavailable: fall back to memory */
+  }
+  return memArchive;
+}
+
+function persistArchive() {
+  try {
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(memArchive));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function recordCaseAttempt(
+  caseId: string,
+  win: boolean,
+  score: number,
+  stars: number,
+  ratingTitle: string,
+  elapsedSeconds: number,
+): CaseArchive {
+  const current = loadArchive();
+  const prev = current[caseId];
+  const attempts = (prev?.attempts ?? 0) + 1;
+  const cleared = (prev?.cleared ?? false) || win;
+  const bestScore = Math.max(prev?.bestScore ?? 0, score);
+  const bestStars = Math.max(prev?.bestStars ?? 0, stars);
+  const title = bestStars > (prev?.bestStars ?? 0) ? ratingTitle : prev?.ratingTitle || ratingTitle;
+  const bestTimeSeconds = prev?.bestTimeSeconds
+    ? win ? Math.min(prev.bestTimeSeconds, elapsedSeconds) : prev.bestTimeSeconds
+    : elapsedSeconds;
+
+  memArchive = {
+    ...current,
+    [caseId]: {
+      caseId,
+      cleared,
+      bestScore,
+      bestStars,
+      ratingTitle: title,
+      bestTimeSeconds,
+      attempts,
+      lastPlayed: Date.now(),
+    },
+  };
+  persistArchive();
+  return memArchive;
+}
+
+export function clearArchive() {
+  memArchive = {};
+  persistArchive();
+}
+
