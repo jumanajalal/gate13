@@ -109,4 +109,4 @@ Add a case object in `src/engine/cases.ts`: objects with positions, locks, witne
 
 ## Credits
 
-Built by YOUR NAME and TEAMMATE NAME for LAYOVER 2026.
+Built by Jumana Jalal for LAYOVER 2026.
