@@ -1,37 +1,44 @@
 # Gate 13: Last Call
 
-An escape-room style detective game for **LAYOVER** (TinkerHub, TinkerSpace Calicut, 10-11 Oct 2026).
-You are the response team at a fictional gate. The system says one thing, the people say another, and you have 3 minutes to work out what the records really prove and radio operations.
+**An escape-room detective game about travel records.** Built overnight for **LAYOVER** (TinkerHub, TinkerSpace Calicut, 10-11 October 2026).
 
-Everything (airline, passengers, flights, records) is fictional. It is a game about reading evidence, not a model of real airport procedure.
+> The system says the passenger boarded. Her brother says she never reached the plane. You have three minutes before the aircraft is cleared.
 
-## How it plays
+| | |
+|---|---|
+| Play it | **https://gate13.vercel.app/** |
+| Source | https://github.com/jumanajalal/gate13 |
+| Solo | Jumana Jalal |
 
-You stand inside a gate area at night and **turn through five walls** (arrow buttons, the dots, or your keyboard arrow keys).
+## What it is
+
+You stand inside a fictional airport gate at night. You turn through five walls, pick things up, crack locked terminals with codes you find on other props, question witnesses, and pin facts on an evidence board. When two records contradict each other, a red string appears between them. Then you file an operations ledger and radio operations with your call.
+
+The game is about one idea: **a travel record is not the same as what happened.**
+
+- A boarding pass scan is not the same as being onboard.
+- A loaded bag is not a passenger.
+- A timestamp is meaningless until you know which clock it was written in.
+
+Everything in it (the airline, passengers, flights and records) is fictional. It is a game about reading evidence, not a model of real airport procedure.
+
+## Why it fits the LAYOVER theme
+
+The brief asks for something built around travel, with no need to solve a real problem. Here travel is the machinery, not a skin: the clues are boarding passes, gate changes, bag tags, scan logs, terminal maps and time zones, and every deduction depends on understanding how those records relate.
+
+## How to play
 
 1. **Cold open.** A short briefing sets the scene. The clock starts when you enter Gate 13.
-2. **Gate counter:** a departure board, the gate agent, a locked terminal. **Window and jet bridge:** a notice taped on the glass and the closed aircraft door. **Seating area:** a worried witness, a receipt on the table, the sign for Holding Point H2. **Baggage wall:** the terminal map, a hanging bag tag, a locked baggage terminal. **Operations wall:** the evidence board, a ledger clipboard, the radio and a countdown.
-3. **Pick things up.** Boarding pass, notice, receipt and bag tag leave the wall and go into your **inventory**. Tap an inventory item while you are at a locked terminal to read the code you need.
-4. **Talk to people** in a dialogue panel with a portrait. They answer authored questions; what they say is pinned on the board.
-5. **Evidence board.** Facts pin themselves as CONFIRMED or UNCONFIRMED. When two records contradict each other, a red string is drawn between them. The contradiction checker is plain deterministic code, never an AI.
-6. **Ledger clipboard.** A paper form with one row per claim. Operations stamps rows VERIFIED or rejects them. Wrong rows cost that row's points, never the game.
-7. **Radio.** Locked until the ledger is right. Choose the action, tap the place on the map, transmit. The board flips and an incident report explains what the records proved.
+2. **Turn through the room.** Five walls: gate counter, window and jet bridge, seating area, baggage wall, and operations wall. Use the arrow buttons, the dots, or your keyboard arrow keys.
+3. **Pick things up.** Boarding pass, notice, receipt and bag tag go into your inventory. Open an inventory item while you are at a locked terminal to read the code you need.
+4. **Talk to people.** Witnesses answer authored questions. What they say is pinned on the evidence board.
+5. **Read the evidence board.** Facts are marked CONFIRMED or UNCONFIRMED. Contradictions get a red string.
+6. **File the ledger.** One row per claim. Operations stamps rows VERIFIED or rejects them.
+7. **Radio operations.** Locked until the ledger is right. Choose the action, tap the place on the map, and transmit. An incident report explains what the records really proved.
 
-The art is drawn in code (SVG), so there are no image files to lose and it works offline. Best on a laptop in fullscreen (there is a Fullscreen button) or a phone in landscape.
+**QR scanning.** Each case ships as a printable evidence kit. Scan an envelope QR to open a case, or scan a physical card to open that object in the game. Every card can also be opened inside the room, so the game never depends on the camera.
 
-## Run it
-
-```bash
-npm install
-npm run dev        # http://localhost:5173
-npm test           # 31 tests: engine rules, layout, and full click-through playthroughs of the room
-npm run build      # then: npm run preview  (http://localhost:4173, works offline)
-```
-
-On Windows PowerShell run the commands one per line (no `&&` in older versions).
-The camera QR scanner needs **https or localhost**. Every card can also be opened from the desk, so the demo never depends on the camera.
-
-## Cases
+## The cases
 
 | Case | The gap between record and reality |
 |---|---|
@@ -41,37 +48,65 @@ The camera QR scanner needs **https or localhost**. Every card can also be opene
 | The Suitcase That Travelled Alone | A bag on the gate chute is not on this flight: an optical scanner error diverted an interline bag |
 | The Phone Left Behind | Independent receipt and notification trails identify the passenger already seated before door closure |
 
-Add a case by copying an object in `src/engine/cases.ts`. `npm test` checks that ids, answers, decisions, conflicts and **lock codes** are consistent, including that every lock code can actually be found on another prop.
-
 ## Features
 
-- 5 authored cases on one engine; persistent Case Archive dossier distinguishes available cases from cleared scenarios
-- Case archive and fast replay: replay any scenario without state contamination, tracking best score and star ratings
-- 5-Star Investigation Rating: evaluates decision accuracy, first-attempt ledger filing, speed, and hint conservation
-- Progressive 3-Tier hints: Attention -> Relationship -> Direct Deduction
-- A five-wall room with drawn props, character portraits, inventory, locks, evidence board with red strings, ledger, radio
-- Hotspot dots (switch off in settings) and a Hint button that makes every uninspected hotspot pulse for 5 seconds
-- Hard mode: stricter hint penalties, time pressure, and dynamic passenger movements, +10 points
-- Scoring: +10 per ledger row filed correctly the first time, +20 radio call, speed bonus, -3 per hint (-5 hard), -5 per wrong call
-- Local leaderboard & local case archive (works completely offline with no server)
-- Departure board with flip animation and a 3:00 countdown
-- Printable evidence kit with QR codes at `/#/props`; scan an envelope QR to open a case, scan a card to open its object
-- PA announcements in English, Malayalam and Arabic with on-screen captions, a synthesised chime and room sound effects (all offline)
-- Optional recorded clips: `public/audio/<caseId>-<atLeft>-<en|ml|ar>.mp3`, plus `<caseId>-win-<lang>.mp3` and `-lose-`. A clip plays instead of speech synthesis if present.
+- Five authored cases on one deterministic engine; a case archive separates available cases from cleared ones, with a best score and star rating per case
+- A five-wall point-and-click room with drawn props, character portraits, a dialogue panel, and an inventory
+- Locked terminals whose codes are found on other props
+- An evidence board with automatic contradiction detection (plain code, never an AI)
+- Progressive three-tier hints: attention, then relationship, then direct deduction
+- Investigation rating based on decision accuracy, first-attempt ledger filing, speed and hint conservation
+- Hard mode: stricter hint penalties, time pressure, and a passenger who can move
+- Departure board with a countdown, PA announcements in English, Malayalam and Arabic with on-screen captions, and synthesised sound effects
+- Fast replay of any case without losing the archive
+- Printable QR evidence kit at `/#/props`
+- Works fully offline once built: no backend, no live AI, no external APIs
 
-**Native review needed:** the Malayalam and Arabic PA lines are drafts. Have a fluent speaker check them before the demo.
+## Scoring
+
++10 per ledger row filed correctly the first time, +20 for the radio call, a small speed bonus, -3 per hint (-5 in hard mode), -5 per wrong radio call. Wrong ledger rows lose that row's points but never end the game.
+
+## Tech
+
+React 18, TypeScript, Vite. The art is drawn in code as SVG, so there are no image assets. Game logic lives in `src/engine/` with no UI code, and is covered by automated tests plus click-through playthroughs of the room. QR scanning uses `html5-qrcode`; the printable kit uses `qrcode`.
+
+## Run it locally
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # engine rules, layout checks and click-through playthroughs
+npm run build
+npm run preview    # http://localhost:4173, works offline
+```
+
+On Windows PowerShell, run the commands one per line.
+
+## Honest notes and limitations
+
+- **The leaderboard is local to each device.** Scores are stored in the browser, so a deployed copy shows each visitor only their own board. It works well as a single booth board on one laptop. A shared online board would need a small backend.
+- **QR codes hold in-app codes, not web links.** Scan them with the in-game scanner. The phone's default camera app will not open the game from them.
+- **The Malayalam and Arabic announcements are drafts** and should be reviewed by a fluent speaker. Recorded clips can replace them (see below).
+- **It is built for a laptop in fullscreen, or a phone in landscape.**
+- The scenario facts are fictional by design.
+
+## Recorded announcements (optional)
+
+Drop MP3 files into `public/audio/` named `<caseId>-<atLeft>-<en|ml|ar>.mp3`, plus `<caseId>-win-<lang>.mp3` and `<caseId>-lose-<lang>.mp3`. A clip plays instead of speech synthesis if present.
 
 ## Project layout
 
-- `src/engine/`: case data, state machine, scoring, store, PA and sound (no UI code, fully tested)
-- `src/components/`: art (all drawings), Room (one wall plus hotspots), Dialogue, Inventory, Inspect (zoom + locks), Wall (board, ledger, radio), Intro, Report, Props
-- `docs/CASE-BIBLE.md`: truth, codes and answer keys. `docs/RUNBOOK.md`: booth setup. `docs/PITCH.md`: pitch script.
+```
+src/engine/       case data, state machine, scoring, storage, announcements, sound (no UI code)
+src/components/   room art, wall hotspots, dialogue, inventory, evidence board, ledger, radio, reports
+docs/             case bible (answer keys), booth runbook, pitch script
+scripts/          renders walls and portraits to images for checking
+```
 
-## Ideas not built yet
+## Adding a case
 
-More case variants, a physical lock souvenir, a text message to the judge's phone from the passenger, animated passenger movement on the map.
+Add a case object in `src/engine/cases.ts`: objects with positions, locks, witnesses, ledger rows, and the radio decision. `npm test` checks that ids, answers, decisions, conflicts and lock codes are consistent, that every lock code can be found on another prop, and that props do not overlap or fall off the room.
 
-## Changing the room
+## Credits
 
-- Where a prop sits: the `at: { v, x, y }` field on each object in `src/engine/cases.ts` (1600x900 canvas, `v` is the wall). `npm test` fails if props overlap or fall off the canvas.
-- How a wall looks: `src/components/art.tsx`. Preview walls as images with `npx vite-node scripts/render.tsx` (writes SVGs to /tmp/walls).
+Built by YOUR NAME and TEAMMATE NAME for LAYOVER 2026.
